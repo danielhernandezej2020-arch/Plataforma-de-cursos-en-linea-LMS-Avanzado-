@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      String   @default("student")
+  createdAt DateTime @default(now())
+
+  enrollments             Enrollment[]
+  payments                Payment[]
+  certificates            Certificate[]
+  evaluationSubmissions   EvaluationSubmission[]
+}
+
+model Course {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  type         String
+  price        Float    @default(0)
+  instructorId String
+  category     String   @default("general")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  modules     Module[]
+  enrollments Enrollment[]
+  evaluations Evaluation[]
+}
+
+model Module {
+  id         String  @id @default(uuid())
+  courseId    String
+  title      String
+  content    String
+  orderIndex Int
+  videoUrl   String?
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  userId     String
+  courseId    String
+  status     String   @default("active")
+  progress   Float    @default(0)
+  enrolledAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Evaluation {
+  id           String   @id @default(uuid())
+  courseId      String
+  title        String
+  type         String
+  passingScore Float    @default(70)
+  questions    Json
+  createdAt    DateTime @default(now())
+
+  course      Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  submissions EvaluationSubmission[]
+}
+
+model EvaluationSubmission {
+  id           String   @id @default(uuid())
+  evaluationId String
+  userId       String
+  answers      Json
+  score        Float
+  passed       Boolean
+  submittedAt  DateTime @default(now())
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+}
+
+model Certificate {
+  id       String   @id @default(uuid())
+  userId   String
+  courseId  String
+  type     String
+  code     String   @unique
+  issuedAt DateTime @default(now())
+  metadata Json?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  userId        String
+  courseId       String
+  amount        Float
+  provider      String
+  status        String
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
