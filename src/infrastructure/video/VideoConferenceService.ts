@@ -3,6 +3,17 @@ import {
   VideoSession,
 } from "@/domain/services/IVideoConferenceService";
 
+/**
+ * Implementación del patrón **Singleton**.
+ * 
+ * Garantiza que exista **una única instancia** de VideoConferenceService en toda la aplicación,
+ * centralizando la gestión de sesiones de videconferencia activas y limitando el número
+ * máximo de sesiones concurrentes.
+ * 
+ * Uso: VideoConferenceService.getInstance() en lugar de new VideoConferenceService()
+ */
+
+
 export class VideoConferenceService implements IVideoConferenceService {
   private static instance: VideoConferenceService | null = null;
   private activeSessions: Map<string, VideoSession> = new Map();
