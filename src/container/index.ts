@@ -10,6 +10,8 @@ import { CourseFactory } from "@/infrastructure/factories/CourseFactory";
 import { EvaluationFactory } from "@/infrastructure/factories/EvaluationFactory";
 import { CertificateFactory } from "@/infrastructure/factories/CertificateFactory";
 import { PaymentProviderFactory } from "@/infrastructure/factories/PaymentProviderFactory";
+import { FreeTierContentFactory } from "@/infrastructure/factories/FreeTierContentFactory";
+import { PremiumTierContentFactory } from "@/infrastructure/factories/PremiumTierContentFactory";
 import { CourseService } from "@/application/services/CourseService";
 import { EvaluationService } from "@/application/services/EvaluationService";
 import { CertificateService } from "@/application/services/CertificateService";
@@ -34,6 +36,19 @@ const courseFactory = new CourseFactory();
 const evaluationFactory = new EvaluationFactory();
 const certificateFactory = new CertificateFactory();
 const paymentProviderFactory = new PaymentProviderFactory();
+
+// ─── ABSTRACT FACTORIES (Content Tier Families) ──────
+export const freeTierFactory = new FreeTierContentFactory(
+  courseFactory,
+  evaluationFactory,
+  certificateFactory
+);
+
+export const premiumTierFactory = new PremiumTierContentFactory(
+  courseFactory,
+  evaluationFactory,
+  certificateFactory
+);
 
 // ─── SINGLETON: Payment Provider Registry ────────────
 const paymentRegistry = PaymentProviderRegistry.getInstance();
