@@ -8,10 +8,9 @@
 
 ## Documentación adicional
 
-Descarga el documento completo en formato Word:
+## Documento del Taller
 
-📄 **[Implementación de patrones DanielBohórquez_DanielHernández](TallerDanielBohórquez_DanielHernández.docx)**  
-*(Última actualización: marzo 2026)*
+📄 **[Descargar Taller Daniel Bohórquez - Daniel Hernández (Word)](https://raw.githubusercontent.com/danielhernandezj2020-arch/main/TallerDanielBohórquez_DanielHernández.docx)**
 
 
 Aunque se trata de una aplicación funcional completa, **el foco educativo del proyecto está puesto en la aplicación correcta y justificada de patrones de diseño** tales como:
