@@ -55,14 +55,67 @@ Este repositorio **NO busca ser únicamente una plataforma LMS funcional**, sino
 | Abstract Factory    | Familias de componentes UI por tema/marca  | Crear sets de componentes (light/dark, institucional) | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
 
-## Estructura de carpetas (orientativa)
+# EduPattern LMS
 
+Plataforma educativa en línea (LMS) desarrollada con el propósito principal de **demostrar e implementar patrones de diseño de software** de forma práctica y documentada.
+
+**Objetivo principal del proyecto**  
+Aplicar y justificar los patrones de diseño vistos en clase (Singleton, Factory Method, Abstract Factory, y los que se vayan incorporando) en un contexto realista de aplicación educativa.
+
+## Características principales (funcionalidad deseada)
+
+- Gestión de cursos, módulos, lecciones y contenido
+- Creación y calificación de evaluaciones (quizzes, exámenes, tareas)
+- Sistema de certificaciones automáticas
+- Videoconferencias integradas con grabación automática
+- Recomendaciones personalizadas y aprendizaje adaptativo
+- Diferenciación entre cursos gratuitos y premium (integración de pagos)
+- Roles: Administrador, Instructor, Estudiante
+- Seguimiento de progreso y estadísticas básicas
+
+## Tecnologías principales (hasta el momento)
+
+- **TypeScript** + JavaScript moderno
+- **Next.js** (App Router)
+- **Prisma** + base de datos relacional
+- Tailwind CSS + PostCSS
+- Entorno fuertemente tipado con interfaces y tipos avanzados
+
+> Nota: las tecnologías concretas del frontend y backend pueden ajustarse con el tiempo, pero el enfoque en **patrones de diseño** y código mantenible/extensible permanece como prioridad.
+
+## Estructura de carpetas (orientativa – estado actual)
+
+```text
 project-root/
-├── prisma/           # base de datos (Prisma)
-├── public/           # imágenes y diagramas de patrones
-├── src/              # código de la aplicación (próximamente con patrones)
+├── prisma/                        # Configuración y modelos de base de datos
+│   ├── migrations/                # Migraciones generadas por Prisma
+│   │   └── 20260301..._init/      # ejemplo
+│   ├── schema.prisma              # Entidades principales del dominio
+│   └── seed.ts                    # Datos iniciales de prueba
+│
+├── public/                        # Recursos estáticos
+│   ├── course-factory.jpeg        # Diagrama Factory Method - Cursos
+│   ├── evaluation-factory.jpeg    # Diagrama Factory - Evaluaciones
+│   ├── payment-provider.jpeg      # Diagrama relacionado con pagos
+│   └── video-conference.jpeg      # Diagrama videoconferencia
+│
+├── src/                           # Código fuente de la aplicación
+│   └── (próximamente contendrá:)
+│       ├── app/                   # Rutas y páginas (Next.js App Router)
+│       ├── components/            # Componentes reutilizables
+│       ├── lib/                   # Utilidades y configuración
+│       ├── domain/                # Entidades y reglas de negocio puras
+│       ├── application/           # Casos de uso / lógica de aplicación
+│       ├── infrastructure/        # Implementaciones concretas (DB, APIs externas)
+│       └── shared/
+│           └── patterns/          # ← Patrones de diseño (la parte central del aprendizaje)
+│
 ├── .gitignore
-├── README.md
+├── README.md                      # ← este archivo
+├── docker-compose.yml             # (opcional)
 ├── next.config.js
+├── next-env.d.ts
 ├── package.json
+├── package-lock.json              # o pnpm-lock.yaml / yarn.lock
+├── postcss.config.js
 └── tsconfig.json
