@@ -52,7 +52,7 @@ Este repositorio **NO busca ser únicamente una plataforma LMS funcional**, sino
 |---------------------|--------------------------------------------|-----------------------------------------------------|------------|
 | Singleton           | Gestor de configuración / Conexión BD      | Única instancia de configuración global            | ✓ Implementado |
 | Factory Method      | Creación de diferentes tipos de Evaluación | Crear Quiz, Examen, Tarea sin acoplar clases       | ✓ Implementado |
-| Abstract Factory    | Familias de componentes UI por tema/marca  | Crear sets de componentes (light/dark, institucional) | En progreso |
+| Abstract Factory    | Familias de componentes UI por tema/marca  | Crear sets de componentes (light/dark, institucional) | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
 
 ## Estructura de carpetas (orientativa)
