@@ -27,9 +27,9 @@ Aunque se trata de una aplicación funcional completa, **el foco educativo del p
 ## Tecnologías principales
 
 - Lenguaje principal: **TypeScript** + JavaScript (ESNext)
-- Entorno frontend: (React / Next.js / Vite + React / Angular / Vue → por definir)
-- Entorno backend: (Node.js + Express / NestJS / Fastify → por definir)
-- Estilo: Tailwind CSS / CSS Modules / styled-components (por definir)
+- Entorno frontend: (Css → por definir)
+- Entorno backend: (TypeScript/Java Script → por definir)
+- Estilo: Tailwind CSS / CSS Modules / styled-components 
 - Estado global: (Zustand / Redux Toolkit / Context API + patrones → por definir)
 - Tipado fuerte y contratos claros mediante **interfaces** y **tipos avanzados**
 - Arquitectura modular y fuertemente influenciada por patrones de diseño
