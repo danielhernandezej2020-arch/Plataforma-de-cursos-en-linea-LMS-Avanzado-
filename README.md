@@ -10,7 +10,7 @@
 
 Descarga el documento completo en formato Word:
 
-📄 **[Especificaciones del proyecto](TallerDanielBohórquez_DanielHernández.docx)**  
+📄 **[Implementación de patrones DanielBohórquez_DanielHernández](TallerDanielBohórquez_DanielHernández.docx)**  
 *(Última actualización: marzo 2026)*
 
 
