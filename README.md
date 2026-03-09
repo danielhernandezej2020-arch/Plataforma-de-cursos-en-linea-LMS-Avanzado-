@@ -58,27 +58,11 @@ Este repositorio **NO busca ser únicamente una plataforma LMS funcional**, sino
 ## Estructura de carpetas (orientativa)
 
 project-root/
-├── prisma/                        # Configuración de Prisma + base de datos
-│   ├── migrations/
-│   │   └── 20260301154343_init/   # ejemplo de migración generada
-│   ├── schema.prisma              # modelos de datos (User, Course, etc.)
-│   └── seed.ts                    # datos iniciales de prueba
-│
-├── public/                        # archivos estáticos servidos directamente
-│   ├── course-factory.jpeg        # Diagrama Factory Method - Cursos
-│   ├── evaluation-factory.jpeg    # Diagrama Factory - Evaluaciones
-│   ├── payment-provider.jpeg      # Diagrama pago / Strategy o Factory
-│   └── video-conference.jpeg      # Diagrama videoconferencia
-│
-├── src/                           # Código fuente principal de la aplicación
-│   └── (aquí irán domain, application, infrastructure, components, etc.)
-│
+├── prisma/           # base de datos (Prisma)
+├── public/           # imágenes y diagramas de patrones
+├── src/              # código de la aplicación (próximamente con patrones)
 ├── .gitignore
-├── README.md                      # ← este archivo
-├── docker-compose.yml             # (opcional - contenedores)
-├── next-env.d.ts
+├── README.md
 ├── next.config.js
 ├── package.json
-├── package-lock.json              # o pnpm-lock.yaml / yarn.lock
-├── postcss.config.js
 └── tsconfig.json
