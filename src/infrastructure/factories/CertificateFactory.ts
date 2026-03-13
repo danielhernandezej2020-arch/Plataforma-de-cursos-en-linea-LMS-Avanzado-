@@ -3,41 +3,27 @@ import {
   GenerateCertificateInput,
 } from "@/domain/factories/ICertificateFactory";
 import { Certificate } from "@/domain/entities/Certificate";
-import { v4 as uuidv4 } from "uuid";
+import { CertificateBuilder } from "@/domain/builders/CertificateBuilder";
 
 export class CertificateFactory implements ICertificateFactory {
   create(input: GenerateCertificateInput): Certificate {
     const code = this.generateCode(input.type);
 
+    const builder = new CertificateBuilder()
+      .forUser(input.userId)
+      .forCourse(input.courseId)
+      .withType(input.type)
+      .withCode(code)
+      .withMetadata("courseTitle", input.courseTitle)
+      .withMetadata("recipientName", input.userName);
+
     if (input.type === "verified") {
-      return {
-        id: uuidv4(),
-        userId: input.userId,
-        courseId: input.courseId,
-        type: "verified",
-        code,
-        issuedAt: new Date(),
-        metadata: {
-          verificationUrl: `https://lms.local/verify/${code}`,
-          courseTitle: input.courseTitle,
-          recipientName: input.userName,
-          verifiedAt: new Date().toISOString(),
-        },
-      };
+      builder
+        .withMetadata("verificationUrl", `https://lms.local/verify/${code}`)
+        .withMetadata("verifiedAt", new Date().toISOString());
     }
 
-    return {
-      id: uuidv4(),
-      userId: input.userId,
-      courseId: input.courseId,
-      type: "basic",
-      code,
-      issuedAt: new Date(),
-      metadata: {
-        courseTitle: input.courseTitle,
-        recipientName: input.userName,
-      },
-    };
+    return builder.build(); // BUILDER
   }
 
   private generateCode(type: "basic" | "verified"): string {

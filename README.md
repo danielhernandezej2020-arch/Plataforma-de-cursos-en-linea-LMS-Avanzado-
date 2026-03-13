@@ -9,10 +9,11 @@
 
 Aunque se trata de una aplicación funcional completa, **el foco educativo del proyecto está puesto en la aplicación correcta y justificada de patrones de diseño** tales como:
 
-- Singleton  
-- Factory Method  
-- Abstract Factory  
-- (y los que se irán incorporando progresivamente: Builder, Strategy, Observer, Decorator, Command, etc.)
+- Singleton
+- Factory Method
+- Abstract Factory
+- Builder
+- (y los que se irán incorporando progresivamente: Strategy, Observer, Decorator, Command, etc.)
 
 ## Características principales del sistema (funcionalidad deseada)
 
@@ -54,14 +55,46 @@ Este repositorio **NO busca ser únicamente una plataforma LMS funcional**, sino
 | Singleton           | Gestor de configuración / Conexión BD      | Única instancia de configuración global            | ✓ Implementado |
 | Factory Method      | Creación de diferentes tipos de Evaluación | Crear Quiz, Examen, Tarea sin acoplar clases       | ✓ Implementado |
 | Abstract Factory    | Familias de componentes UI por tema/marca  | Crear sets de componentes (light/dark, institucional) | ✓ Implementado |
+| Builder             | `src/domain/builders/` (Course, Evaluation, Certificate) | Ensamblar entidades complejas paso a paso con API fluida | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
+
+### Patrón Builder — Detalle
+
+Las entidades `Course`, `Evaluation` y `Certificate` tienen múltiples atributos opcionales y reglas de validación que dependen de la combinación de valores (por ejemplo, un curso premium requiere precio; un quiz requiere al menos una pregunta con opciones válidas). El Builder centraliza esa validación en `build()` y permite configurar cada atributo con nombre explícito mediante una API encadenable.
+
+Las **Factories existentes actúan como Directores**: siguen siendo el punto de entrada desde los servicios y contienen la lógica de tipo (free vs premium, quiz vs project, basic vs verified). Internamente delegan la construcción al Builder correspondiente.
+
+```typescript
+// Ejemplo: CertificateFactory usando CertificateBuilder
+const builder = new CertificateBuilder()
+  .forUser(input.userId)
+  .forCourse(input.courseId)
+  .withType(input.type)
+  .withCode(code)
+  .withMetadata("courseTitle", input.courseTitle)
+  .withMetadata("recipientName", input.userName);
+
+if (input.type === "verified") {
+  builder
+    .withMetadata("verificationUrl", `https://lms.local/verify/${code}`)
+    .withMetadata("verifiedAt", new Date().toISOString());
+}
+
+return builder.build();
+```
+
+| Builder | Archivo | API principal |
+|---|---|---|
+| `CourseBuilder` | `src/domain/builders/CourseBuilder.ts` | `.withTitle()` `.withType()` `.withPrice()` `.withInstructor()` `.build()` |
+| `EvaluationBuilder` | `src/domain/builders/EvaluationBuilder.ts` | `.withCourseId()` `.withType()` `.withPassingScore()` `.withQuestions()` `.build()` |
+| `CertificateBuilder` | `src/domain/builders/CertificateBuilder.ts` | `.forUser()` `.forCourse()` `.withType()` `.withCode()` `.withMetadata()` `.build()` |
 
 # EduPattern LMS
 
 Plataforma educativa en línea (LMS) desarrollada con el propósito principal de **demostrar e implementar patrones de diseño de software** de forma práctica y documentada.
 
 **Objetivo principal del proyecto**  
-Aplicar y justificar los patrones de diseño vistos en clase (Singleton, Factory Method, Abstract Factory, y los que se vayan incorporando) en un contexto realista de aplicación educativa.
+Aplicar y justificar los patrones de diseño vistos en clase (Singleton, Factory Method, Abstract Factory, Builder, y los que se vayan incorporando) en un contexto realista de aplicación educativa.
 
 ## Características principales (funcionalidad deseada)
 
@@ -106,8 +139,10 @@ project-root/
 │       ├── components/            # Componentes reutilizables
 │       ├── lib/                   # Utilidades y configuración
 │       ├── domain/                # Entidades y reglas de negocio puras
+│       │   └── builders/          # ← CourseBuilder, EvaluationBuilder, CertificateBuilder
 │       ├── application/           # Casos de uso / lógica de aplicación
 │       ├── infrastructure/        # Implementaciones concretas (DB, APIs externas)
+│       │   └── factories/         # Factories (actúan como Directores de los builders)
 │       └── shared/
 │           └── patterns/          # ← Patrones de diseño (la parte central del aprendizaje)
 │

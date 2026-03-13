@@ -1,28 +1,27 @@
 import { ICourseFactory } from "@/domain/factories/ICourseFactory";
 import { Course } from "@/domain/entities/Course";
 import { CreateCourseDTO } from "@/application/dto/CreateCourseDTO";
-import { v4 as uuidv4 } from "uuid";
+import { CourseBuilder } from "@/domain/builders/CourseBuilder";
 
 export class CourseFactory implements ICourseFactory {
   create(dto: CreateCourseDTO): Course {
-    const now = new Date();
-    const base = {
-      id: uuidv4(),
-      title: dto.title,
-      description: dto.description,
-      instructorId: dto.instructorId,
-      category: dto.category || "general",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    if (dto.type === "premium") {
-      if (!dto.price || dto.price <= 0) {
-        throw new Error("Premium courses must have a price greater than 0");
-      }
-      return { ...base, type: "premium" as const, price: dto.price };
+    if (dto.type === "premium" && (!dto.price || dto.price <= 0)) {
+      throw new Error("Premium courses must have a price greater than 0");
     }
 
-    return { ...base, type: "free" as const, price: 0 };
+    const now = new Date();
+    const builder = new CourseBuilder()
+      .withTitle(dto.title)
+      .withDescription(dto.description)
+      .withType(dto.type)
+      .withInstructor(dto.instructorId)
+      .withCategory(dto.category || "general")
+      .withTimestamps(now, now);
+
+    if (dto.type === "premium" && dto.price) {
+      builder.withPrice(dto.price);
+    }
+
+    return builder.build(); // BUILDER
   }
 }
