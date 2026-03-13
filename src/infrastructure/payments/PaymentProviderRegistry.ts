@@ -1,5 +1,12 @@
 import { IPaymentProvider } from "@/domain/services/IPaymentProvider";
 
+/**
+ * Implementación del patrón Singleton.
+ * Garantiza que solo exista una única instancia de PaymentProviderRegistry en toda la aplicación,
+ * centralizando el registro y consulta de proveedores de pago, así como el control de transacciones ya procesadas.
+ * Se utiliza inicialización diferida (lazy initialization).
+ */
+
 export class PaymentProviderRegistry {
   private static instance: PaymentProviderRegistry | null = null;
   private providers: Map<string, IPaymentProvider> = new Map();
