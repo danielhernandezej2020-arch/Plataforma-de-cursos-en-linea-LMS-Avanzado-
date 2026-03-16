@@ -6,7 +6,7 @@
 
 **EduPattern LMS** es una plataforma moderna de gestión de aprendizaje (LMS) desarrollada con el propósito principal de **demostrar e implementar patrones de diseño de software** estudiados en clase de manera práctica, limpia y mantenible.
 
-## El documento de las evidencias se encuentra tanto dentro del repositorio como anexado en el siguiente link:  [Evidencia Patrones Aplicados](https://github.com/danielhernandezej2020-arch/Evidencia-Patrones-aplicados-DanielBoh-rquez_DanielHern-ndez/raw/main/Evidencia%20Patrones%20aplicados%20DanielBoh%C3%B3rquez....docx)
+## El documento de las evidencias se encuentra tanto dentro del repositorio como anexado en el siguiente link:  [Evidencia Patrones Aplicados](https://github.com/danielhernandezej2020-arch/Plataforma-de-cursos-en-linea-LMS-Avanzado-/blob/main/Evidencia%20Patrones%20aplicados%20DanielBoh%C3%B3rquez_DanielHern%C3%A1ndez.docx)
 
 
 
