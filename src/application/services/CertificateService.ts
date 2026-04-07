@@ -4,6 +4,7 @@ import { ICourseRepository } from "@/domain/repositories/ICourseRepository";
 import { IUserRepository } from "@/domain/repositories/IUserRepository";
 import { ICertificateFactory } from "@/domain/factories/ICertificateFactory";
 import { Certificate } from "@/domain/entities/Certificate";
+import { CertificatePrototype } from "@/infrastructure/prototypes/CertificatePrototype";
 
 export class CertificateService {
   constructor(
@@ -45,6 +46,19 @@ export class CertificateService {
     });
 
     return this.certificateRepository.save(certificate);
+  }
+
+  async cloneCertificateTemplate(templateId: string, userIds: string[]): Promise<Certificate[]> {
+    const template = await this.certificateRepository.findById(templateId);
+    if (!template) throw new Error("Certificate template not found");
+    // PROTOTYPE — single prototype, N clones
+    const prototype = new CertificatePrototype(template);
+    const results: Certificate[] = [];
+    for (const userId of userIds) {
+      const cloned = prototype.clone({ userId });
+      results.push(await this.certificateRepository.save(cloned));
+    }
+    return results;
   }
 
   async getUserCertificates(userId: string): Promise<Certificate[]> {

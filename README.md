@@ -52,6 +52,7 @@ Aunque se trata de una aplicación funcional completa, **el foco educativo del p
 | Abstract Factory    | Familias de componentes UI por tema/marca  | Crear sets de componentes (light/dark, institucional) | ✓ Implementado |
 | Builder             | `src/domain/builders/` (Course, Evaluation, Certificate) | Ensamblar entidades complejas paso a paso con API fluida | ✓ Implementado |
 | Adapter             | `src/infrastructure/payments/` (StripePaymentAdapter, PayPalPaymentAdapter) | Adaptar SDKs externos incompatibles a IPaymentProvider | ✓ Implementado |
+| Prototype           | `src/infrastructure/prototypes/` (EvaluationPrototype, CertificatePrototype) | Clonar evaluaciones y emitir certificados en lote     | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
 
 
@@ -197,3 +198,117 @@ El Adapter utiliza **composición** (recibe el SDK por constructor) en lugar de 
 - Dificultades para hacer pruebas unitarias (podemos inyectar un SDK falso).
 
 La composición nos permite intercambiar o versionar el SDK sin tocar la interfaz que expone el Adapter.
+
+---
+
+## Patrón Prototype — Clonación de evaluaciones y certificados
+
+### El problema
+
+Crear una evaluación nueva para un curso distinto copiando la estructura de una existente (mismo banco de preguntas, misma puntuación de aprobación) requeriría construir el objeto desde cero usando el Factory/Builder, duplicando código de configuración. De igual forma, emitir el mismo certificado en lote para varios usuarios implicaría invocar el factory N veces con los mismos parámetros base. Ambos casos tienen en común que **el objeto origen ya existe y es costoso o tedioso reconstruir su estado**, por lo que es preferible clonarlo y aplicar solo los cambios necesarios.
+
+| Aspecto               | Sin Prototype                                      | Con Prototype                                         |
+|-----------------------|----------------------------------------------------|-------------------------------------------------------|
+| Fuente de la copia    | Reconstrucción manual desde el DTO original        | `prototype.clone(overrides)` sobre el objeto real     |
+| Deep copy de `questions` | El llamador debe conocer la estructura interna | Encapsulado dentro de `EvaluationPrototype`           |
+| Emisión en lote       | N invocaciones al factory con parámetros repetidos | Un prototype, bucle de `clone({ userId })`            |
+| Acoplamiento          | El servicio conoce los detalles de construcción    | El servicio solo conoce `IPrototype<T>`               |
+
+### Diagrama
+
+```
+          «interface»
+        ┌───────────────────────────────────┐
+        │          IPrototype<T, O>         │
+        │  + clone(overrides?: O): T        │
+        └──────────────┬────────────────────┘
+                       │ implements
+          ┌────────────┴─────────────────┐
+          │                              │
+┌─────────▼──────────────┐   ┌──────────▼──────────────────┐
+│  EvaluationPrototype   │   │    CertificatePrototype      │
+│  - source: Evaluation  │   │    - source: Certificate     │
+│  + clone(overrides?)   │   │    + clone(overrides?)       │
+│    → deep copy         │   │      → new code + issuedAt   │
+│      questions array   │   │      → shallow copy metadata │
+└────────────────────────┘   └─────────────────────────────┘
+          ▲                              ▲
+          │ usa                          │ usa
+┌─────────┴──────────────┐   ┌──────────┴──────────────────┐
+│   EvaluationService    │   │     CertificateService       │
+│  cloneEvaluation(id,   │   │  cloneCertificateTemplate(   │
+│    dto)                │   │    templateId, userIds[])    │
+└────────────────────────┘   └─────────────────────────────┘
+          ▲
+          │ POST /api/evaluations/:id/clone
+┌─────────┴──────────────┐
+│   clone/route.ts       │
+└────────────────────────┘
+```
+
+### Fragmentos de código
+
+**Contrato de dominio** (`src/domain/prototypes/IPrototype.ts`):
+```typescript
+export interface IPrototype<T, O extends Partial<T> = Partial<T>> {
+  clone(overrides?: O): T;
+}
+```
+
+**Prototype concreto para Evaluation** (`src/infrastructure/prototypes/EvaluationPrototype.ts`):
+```typescript
+export class EvaluationPrototype implements IPrototype<Evaluation, EvaluationOverrides> {
+  constructor(private readonly source: Evaluation) {}
+
+  clone(overrides?: EvaluationOverrides): Evaluation {
+    // Deep copy: cada QuizQuestion y su array options son nuevos objetos
+    const questions = Array.isArray(this.source.questions)
+      ? (this.source.questions as QuizQuestion[]).map((q) => ({
+          ...q,
+          options: [...q.options],
+        }))
+      : this.source.questions;
+
+    return {
+      id: uuidv4(),          // nuevo id
+      ...this.source,
+      questions,             // deep copy
+      createdAt: new Date(), // nuevo timestamp
+      ...overrides,          // courseId, title, passingScore del llamador
+    };
+  }
+}
+```
+
+**Uso en el servicio** (`src/application/services/EvaluationService.ts`):
+```typescript
+async cloneEvaluation(sourceId: string, dto: CloneEvaluationDTO): Promise<Evaluation> {
+  const source = await this.evaluationRepository.findById(sourceId);
+  if (!source) throw new Error("Source evaluation not found");
+  // PROTOTYPE
+  const prototype = new EvaluationPrototype(source);
+  const cloned = prototype.clone({
+    courseId: dto.courseId,
+    title: dto.title ?? `${source.title} (copy)`,
+    passingScore: dto.passingScore,
+  });
+  return this.evaluationRepository.save(cloned);
+}
+```
+
+**Endpoint API** (`src/app/api/evaluations/[id]/clone/route.ts`):
+```typescript
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const body = await request.json();
+  const cloned = await evaluationService.cloneEvaluation(params.id, {
+    courseId: body.courseId,
+    title: body.title,
+    passingScore: body.passingScore,
+  });
+  return NextResponse.json(cloned, { status: 201 });
+}
+```
+
+### Prototype vs otras soluciones
+
+El patrón **Prototype** se diferencia del **Factory Method** en que no reconstruye un objeto desde parámetros abstractos, sino que **parte del estado completo de una instancia ya existente**. Si usáramos el `EvaluationFactory` para clonar, necesitaríamos serializar todas las preguntas de vuelta a un DTO y luego pasarlo al factory, lo que rompe la encapsulación y duplica la lógica de transformación. El Prototype encapsula esa lógica de copia (incluyendo el deep copy del array anidado de preguntas) dentro del propio objeto origen. En el caso del certificado en lote, la ventaja es aún más clara: un único `CertificatePrototype` se reutiliza en un bucle para emitir N copias con distinto `userId`, `code` e `issuedAt` sin requerir ni el factory ni el builder en cada iteración.

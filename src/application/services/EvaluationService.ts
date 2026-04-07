@@ -2,8 +2,10 @@ import { IEvaluationRepository } from "@/domain/repositories/IEvaluationReposito
 import { IEnrollmentRepository } from "@/domain/repositories/IEnrollmentRepository";
 import { IEvaluationFactory } from "@/domain/factories/IEvaluationFactory";
 import { CreateEvaluationDTO, QuizQuestion } from "@/application/dto/CreateEvaluationDTO";
+import { CloneEvaluationDTO } from "@/application/dto/CloneEvaluationDTO";
 import { SubmitEvaluationDTO } from "@/application/dto/SubmitEvaluationDTO";
 import { Evaluation, EvaluationSubmission } from "@/domain/entities/Evaluation";
+import { EvaluationPrototype } from "@/infrastructure/prototypes/EvaluationPrototype";
 import { v4 as uuidv4 } from "uuid";
 
 export class EvaluationService {
@@ -16,6 +18,19 @@ export class EvaluationService {
   async createEvaluation(dto: CreateEvaluationDTO): Promise<Evaluation> {
     const evaluation = this.evaluationFactory.create(dto); // FACTORY METHOD
     return this.evaluationRepository.save(evaluation);
+  }
+
+  async cloneEvaluation(sourceId: string, dto: CloneEvaluationDTO): Promise<Evaluation> {
+    const source = await this.evaluationRepository.findById(sourceId);
+    if (!source) throw new Error("Source evaluation not found");
+    // PROTOTYPE
+    const prototype = new EvaluationPrototype(source);
+    const cloned = prototype.clone({
+      courseId: dto.courseId,
+      title: dto.title ?? `${source.title} (copy)`,
+      passingScore: dto.passingScore,
+    });
+    return this.evaluationRepository.save(cloned);
   }
 
   async getEvaluationsByCourse(courseId: string): Promise<Evaluation[]> {
