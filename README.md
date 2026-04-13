@@ -53,6 +53,8 @@ Aunque se trata de una aplicación funcional completa, **el foco educativo del p
 | Builder             | `src/domain/builders/` (Course, Evaluation, Certificate) | Ensamblar entidades complejas paso a paso con API fluida | ✓ Implementado |
 | Adapter             | `src/infrastructure/payments/` (StripePaymentAdapter, PayPalPaymentAdapter) | Adaptar SDKs externos incompatibles a IPaymentProvider | ✓ Implementado |
 | Prototype           | `src/infrastructure/prototypes/` (EvaluationPrototype, CertificatePrototype) | Clonar evaluaciones y emitir certificados en lote     | ✓ Implementado |
+| Decorator           | `src/infrastructure/payments/decorators/` (LoggingPaymentDecorator, RetryPaymentDecorator) | Añadir logging y reintentos a cualquier IPaymentProvider sin modificar los adaptadores | ✓ Implementado |
+| Bridge              | `src/infrastructure/notifications/` + `src/domain/services/notifications/` | Desacoplar tipo de notificación del canal de entrega (Email, Console, SMS…) | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
 
 
@@ -312,3 +314,232 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 ### Prototype vs otras soluciones
 
 El patrón **Prototype** se diferencia del **Factory Method** en que no reconstruye un objeto desde parámetros abstractos, sino que **parte del estado completo de una instancia ya existente**. Si usáramos el `EvaluationFactory` para clonar, necesitaríamos serializar todas las preguntas de vuelta a un DTO y luego pasarlo al factory, lo que rompe la encapsulación y duplica la lógica de transformación. El Prototype encapsula esa lógica de copia (incluyendo el deep copy del array anidado de preguntas) dentro del propio objeto origen. En el caso del certificado en lote, la ventaja es aún más clara: un único `CertificatePrototype` se reutiliza en un bucle para emitir N copias con distinto `userId`, `code` e `issuedAt` sin requerir ni el factory ni el builder en cada iteración.
+
+---
+
+## Patrón Decorator — Comportamientos adicionales en pasarelas de pago
+
+### El problema
+
+Los adaptadores `StripePaymentAdapter` y `PayPalPaymentAdapter` procesan pagos correctamente, pero el sistema necesita comportamientos transversales como **registro de actividad (logging)** y **reintentos automáticos** ante fallos transitorios. Añadir esas capacidades directamente a cada adaptador violaría el Principio de Responsabilidad Única y obligaría a duplicar código. Crear subclases (`StripeLoggingAdapter`, `StripeRetryAdapter`, `StripeLoggingRetryAdapter`, etc.) genera una explosión de clases.
+
+| Aspecto                | Sin Decorator                                      | Con Decorator                                        |
+|------------------------|----------------------------------------------------|------------------------------------------------------|
+| Añadir logging         | Modificar cada adaptador o crear subclases         | `new LoggingPaymentDecorator(adaptador)`             |
+| Añadir retry           | Duplicar lógica en cada adaptador                  | `new RetryPaymentDecorator(adaptador, 3)`            |
+| Combinar ambos         | Crear subclase combinada por cada adaptador        | `new LoggingPaymentDecorator(new RetryPaymentDecorator(adaptador, 3))` |
+| Modificar adaptadores  | Sí — rompe OCP                                     | No — los adaptadores no cambian                      |
+| Desactivar en pruebas  | Difícil — comportamiento acoplado                  | Fácil — no envolver el adaptador                     |
+
+### Diagrama
+
+```
+              «interface»
+         ┌──────────────────────────────────────┐
+         │          IPaymentProvider            │  ← Component (Target)
+         │  + processPayment(amount, …)         │
+         │  + refund(transactionId)             │
+         └──────────┬───────────────────────────┘
+                    │ implements
+     ┌──────────────┼──────────────────────────────────────┐
+     │              │                                      │
+┌────▼────────┐ ┌───▼──────────────────────┐  ┌───────────▼───────────────┐
+│StripePayment│ │  PaymentProviderDecorator │  │   PayPalPaymentAdapter    │
+│   Adapter   │ │  # wrapped: IPaymentProv.│  │   (ConcreteComponent)     │
+│(Concrete    │ │  + processPayment(…)      │  └───────────────────────────┘
+│ Component)  │ │  + refund(…)             │
+└─────────────┘ └──────────┬───────────────┘
+                            │ extiende
+             ┌──────────────┴──────────────┐
+             │                             │
+┌────────────▼────────────┐  ┌─────────────▼───────────────┐
+│  LoggingPaymentDecorator│  │   RetryPaymentDecorator      │  ← ConcreteDecorators
+│  + processPayment(…)    │  │   - maxRetries: number       │
+│    → log antes/después  │  │   + processPayment(…)        │
+│  + refund(…)            │  │     → reintenta N veces      │
+│    → log antes/después  │  └─────────────────────────────┘
+└─────────────────────────┘
+
+Uso en container/index.ts (apilamiento de decoradores):
+  new LoggingPaymentDecorator(
+    new RetryPaymentDecorator(stripeAdapter, 3)
+  )
+```
+
+### Fragmentos de código
+
+**Decorator Base** — delega todas las operaciones al componente envuelto (`src/infrastructure/payments/decorators/PaymentProviderDecorator.ts`):
+```typescript
+export abstract class PaymentProviderDecorator implements IPaymentProvider {
+  constructor(protected readonly wrapped: IPaymentProvider) {}
+
+  get name(): string { return this.wrapped.name; }
+
+  async processPayment(amount: number, userId: string, metadata: Record<string, string>): Promise<PaymentResult> {
+    return this.wrapped.processPayment(amount, userId, metadata);
+  }
+
+  async refund(transactionId: string): Promise<{ success: boolean }> {
+    return this.wrapped.refund(transactionId);
+  }
+}
+```
+
+**ConcreteDecorator: Logging** (`src/infrastructure/payments/decorators/LoggingPaymentDecorator.ts`):
+```typescript
+export class LoggingPaymentDecorator extends PaymentProviderDecorator {
+  async processPayment(amount: number, userId: string, metadata: Record<string, string>): Promise<PaymentResult> {
+    console.log(`[Decorator:Logging][${this.name}] processPayment → amount=${amount}, userId=${userId}`);
+    const result = await super.processPayment(amount, userId, metadata);
+    console.log(`[Decorator:Logging][${this.name}] processPayment ← success=${result.success}, txId=${result.transactionId}`);
+    return result;
+  }
+  // refund() con logging similar…
+}
+```
+
+**ConcreteDecorator: Retry** (`src/infrastructure/payments/decorators/RetryPaymentDecorator.ts`):
+```typescript
+export class RetryPaymentDecorator extends PaymentProviderDecorator {
+  constructor(wrapped: IPaymentProvider, private readonly maxRetries = 3, private readonly delayMs = 500) {
+    super(wrapped);
+  }
+
+  async processPayment(amount: number, userId: string, metadata: Record<string, string>): Promise<PaymentResult> {
+    let lastResult: PaymentResult | undefined;
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        const result = await super.processPayment(amount, userId, metadata);
+        if (result.success) return result;        // éxito → retorna inmediatamente
+        lastResult = result;
+      } catch (err) {
+        lastResult = { success: false, transactionId: "", provider: this.name, amount, error: String(err) };
+      }
+      if (attempt < this.maxRetries) await new Promise<void>((r) => setTimeout(r, this.delayMs * attempt));
+    }
+    return lastResult!;
+  }
+}
+```
+
+**Wiring en el contenedor** (`src/container/index.ts`):
+```typescript
+// Logging (capa externa) envuelve a Retry (capa interna) que envuelve al adaptador base
+paymentRegistry.registerProvider(
+  "stripe",
+  new LoggingPaymentDecorator(
+    new RetryPaymentDecorator(paymentProviderFactory.create("stripe"), 3)
+  )
+);
+```
+
+### Decorator vs herencia
+
+El patrón **Decorator** usa **composición** en lugar de herencia para extender comportamiento. Con herencia habría que crear una subclase por cada combinación posible (`StripeLoggingAdapter`, `StripeRetryAdapter`, `StripeLoggingRetryAdapter`, `PayPalLoggingAdapter`…). Con Decorator, cada comportamiento es una capa independiente que puede apilarse sobre cualquier `IPaymentProvider` en el orden deseado, respetando el Principio Abierto/Cerrado: los adaptadores originales no se modifican.
+
+---
+
+## Patrón Bridge — Sistema de notificaciones del LMS
+
+### El problema
+
+El LMS necesita enviar notificaciones para distintos eventos (inscripción, pago confirmado, certificado emitido) a través de distintos canales (correo electrónico, consola/log, SMS, push…). Sin Bridge, cada combinación requeriría su propia clase: `EnrollmentEmailNotification`, `EnrollmentSMSNotification`, `PaymentEmailNotification`, etc. Con M tipos de evento y N canales, el resultado es M×N clases. El Bridge resuelve esto separando la jerarquía de **qué notificar** (Abstraction) de la jerarquía de **cómo entregarlo** (Implementor), reduciéndolo a M+N clases.
+
+| Aspecto               | Sin Bridge (herencia)                             | Con Bridge (composición)                              |
+|-----------------------|---------------------------------------------------|-------------------------------------------------------|
+| Nuevos canales        | Añadir subclase por cada tipo de notificación     | Solo crear un nuevo `INotificationChannel`            |
+| Nuevos tipos evento   | Añadir subclase por cada canal                    | Solo crear una nueva `Notification` subclase          |
+| Clases totales        | M tipos × N canales = M×N                        | M tipos + N canales = M+N                            |
+| Cambio de canal       | Requiere cambiar la jerarquía de abstracciones    | Se inyecta el canal en el constructor                 |
+| Pruebas unitarias     | Difícil — tipo y canal acoplados                  | Fácil — se inyecta un canal mock                      |
+
+### Diagrama
+
+```
+  ┌──────────────────────────────────┐       ┌────────────────────────────────┐
+  │         «abstract»               │       │         «interface»             │
+  │         Notification             │─────▶│       INotificationChannel     │  ← Implementor
+  │  # channel: INotificationChannel│       │  + send(to, subject, body)     │
+  │  + notify(recipient, data)       │       └──────────────┬─────────────────┘
+  └──────────────┬───────────────────┘                      │ implementa
+                 │ extiende                    ┌────────────┴────────────────┐
+   ┌─────────────┼──────────────────┐         │                             │
+   │             │                  │ ┌────────▼──────────────┐ ┌───────────▼────────────┐
+┌──▼──────────┐ ┌▼─────────────┐ ┌─▼──────────┐ │ConsoleNotification│ │EmailNotification   │← ConcreteImplementors
+│Enrollment   │ │Payment       │ │Certificate  │ │Channel            │ │Channel             │
+│Notification │ │Notification  │ │Notification │ │+ send(…)          │ │+ send(…)           │
+│             │ │              │ │             │ │  → console.log    │ │  → proveedor email │
+│+ notify(…)  │ │+ notify(…)   │ │+ notify(…)  │ └───────────────────┘ └────────────────────┘
+└─────────────┘ └──────────────┘ └─────────────┘
+  ↑ RefinedAbstractions
+
+Uso (combinaciones en tiempo de ejecución):
+  new EnrollmentNotification(new EmailNotificationChannel())
+  new PaymentNotification(new ConsoleNotificationChannel())
+  new CertificateNotification(new EmailNotificationChannel())
+```
+
+### Fragmentos de código
+
+**Implementor** — contrato del canal de entrega (`src/domain/services/notifications/INotificationChannel.ts`):
+```typescript
+export interface INotificationChannel {
+  send(to: string, subject: string, body: string): Promise<void>;
+}
+```
+
+**Abstraction** — base de la jerarquía de notificaciones (`src/domain/services/notifications/Notification.ts`):
+```typescript
+export abstract class Notification {
+  constructor(protected readonly channel: INotificationChannel) {}
+  abstract notify(recipient: string, data: Record<string, string>): Promise<void>;
+}
+```
+
+**ConcreteImplementor** — entrega por consola (`src/infrastructure/notifications/channels/ConsoleNotificationChannel.ts`):
+```typescript
+export class ConsoleNotificationChannel implements INotificationChannel {
+  async send(to: string, subject: string, body: string): Promise<void> {
+    console.log(`[Notificación → Console] Para: ${to} | Asunto: "${subject}"`);
+    console.log(`  Cuerpo: ${body}`);
+  }
+}
+```
+
+**RefinedAbstraction** — notificación de inscripción (`src/infrastructure/notifications/EnrollmentNotification.ts`):
+```typescript
+export class EnrollmentNotification extends Notification {
+  async notify(recipient: string, data: Record<string, string>): Promise<void> {
+    const subject = `¡Bienvenido al curso "${data.courseName}"!`;
+    const body =
+      `Hola ${data.studentName ?? recipient},\n\n` +
+      `Te has inscrito exitosamente en el curso "${data.courseName}".\n` +
+      `Instructor: ${data.instructorName ?? "No especificado"}\n\n` +
+      `¡Mucho éxito en tu aprendizaje!`;
+    await this.channel.send(recipient, subject, body);   // delega al canal
+  }
+}
+```
+
+**Uso combinado** — el canal se elige en tiempo de ejecución:
+```typescript
+// Inscripción → email
+const notif = new EnrollmentNotification(new EmailNotificationChannel());
+await notif.notify("estudiante@uni.edu", {
+  courseName: "TypeScript Avanzado",
+  studentName: "Ana García",
+  instructorName: "Prof. Martínez",
+});
+
+// Pago confirmado → consola (ej. entorno de desarrollo)
+const paymentNotif = new PaymentNotification(new ConsoleNotificationChannel());
+await paymentNotif.notify("ana@uni.edu", {
+  amount: "49.99",
+  provider: "stripe",
+  transactionId: "txn_abc123",
+});
+```
+
+### Bridge vs herencia
+
+Sin Bridge, cada combinación de (tipo de evento, canal) exige su propia clase. Con 3 tipos de notificación y 2 canales ya son 6 clases; añadir un tercer canal (SMS) implicaría 3 clases nuevas en vez de una sola. El **Bridge** reduce ese crecimiento de multiplicativo a aditivo, y permite cambiar el canal de una notificación en tiempo de ejecución simplemente inyectando un `INotificationChannel` diferente, sin tocar ninguna de las clases de notificación existentes.

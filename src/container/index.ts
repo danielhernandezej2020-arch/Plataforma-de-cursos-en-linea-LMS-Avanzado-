@@ -18,6 +18,8 @@ import { CertificateService } from "@/application/services/CertificateService";
 import { PaymentService } from "@/application/services/PaymentService";
 import { EnrollmentService } from "@/application/services/EnrollmentService";
 import { PaymentProviderRegistry } from "@/infrastructure/payments/PaymentProviderRegistry";
+import { LoggingPaymentDecorator } from "@/infrastructure/payments/decorators/LoggingPaymentDecorator";
+import { RetryPaymentDecorator } from "@/infrastructure/payments/decorators/RetryPaymentDecorator";
 
 // ─── SINGLETON: Database ─────────────────────────────
 const prisma = db.getClient();
@@ -51,9 +53,22 @@ export const premiumTierFactory = new PremiumTierContentFactory(
 );
 
 // ─── SINGLETON: Payment Provider Registry ────────────
+// Patrón Decorator: los adaptadores base se envuelven con Retry y luego con Logging.
+// El orden de envoltura importa: Logging es la capa más externa (registra la operación
+// completa incluidos los reintentos), Retry es la capa intermedia.
 const paymentRegistry = PaymentProviderRegistry.getInstance();
-paymentRegistry.registerProvider("stripe", paymentProviderFactory.create("stripe"));
-paymentRegistry.registerProvider("paypal", paymentProviderFactory.create("paypal"));
+paymentRegistry.registerProvider(
+  "stripe",
+  new LoggingPaymentDecorator(
+    new RetryPaymentDecorator(paymentProviderFactory.create("stripe"), 3)
+  )
+);
+paymentRegistry.registerProvider(
+  "paypal",
+  new LoggingPaymentDecorator(
+    new RetryPaymentDecorator(paymentProviderFactory.create("paypal"), 3)
+  )
+);
 
 // ─── APPLICATION SERVICES ────────────────────────────
 export const courseService = new CourseService(
