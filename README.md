@@ -55,6 +55,8 @@ Aunque se trata de una aplicación funcional completa, **el foco educativo del p
 | Prototype           | `src/infrastructure/prototypes/` (EvaluationPrototype, CertificatePrototype) | Clonar evaluaciones y emitir certificados en lote     | ✓ Implementado |
 | Decorator           | `src/infrastructure/payments/decorators/` (LoggingPaymentDecorator, RetryPaymentDecorator) | Añadir logging y reintentos a cualquier IPaymentProvider sin modificar los adaptadores | ✓ Implementado |
 | Bridge              | `src/infrastructure/notifications/` + `src/domain/services/notifications/` | Desacoplar tipo de notificación del canal de entrega (Email, Console, SMS…) | ✓ Implementado |
+| Composite           | `src/domain/composite/` + `src/infrastructure/notifications/channels/CompositeNotificationChannel.ts` | Tratar módulos y cursos de forma uniforme mediante un árbol; enviar a múltiples canales de notificación con un solo `send()` | ✓ Implementado |
+| Facade              | `src/infrastructure/facades/` (LearningFacade, CourseManagementFacade) | Ocultar la complejidad del flujo de inscripción y de creación de cursos detrás de métodos simples | ✓ Implementado |
 | …                   | …                                          | …                                                   | Próximamente |
 
 
@@ -543,3 +545,320 @@ await paymentNotif.notify("ana@uni.edu", {
 ### Bridge vs herencia
 
 Sin Bridge, cada combinación de (tipo de evento, canal) exige su propia clase. Con 3 tipos de notificación y 2 canales ya son 6 clases; añadir un tercer canal (SMS) implicaría 3 clases nuevas en vez de una sola. El **Bridge** reduce ese crecimiento de multiplicativo a aditivo, y permite cambiar el canal de una notificación en tiempo de ejecución simplemente inyectando un `INotificationChannel` diferente, sin tocar ninguna de las clases de notificación existentes.
+
+---
+
+## Patrón Composite — Árbol de contenido del curso y canal de notificación múltiple
+
+### El problema
+
+El LMS tiene dos situaciones donde el patrón Composite es la solución natural:
+
+1. **Árbol de contenido del curso**: un `Course` contiene `Module`s. Al calcular la duración total de un curso, el llamador no debería tener que iterar manualmente la lista de módulos; debería poder llamar `getDuration()` sobre el curso y obtener el total sin importar cuántos módulos existan.
+
+2. **Canal de notificación múltiple**: cuando un estudiante se inscribe, el sistema necesita enviar la notificación por email Y dejar un registro en consola. Sin Composite, el llamador tendría que llamar `send()` dos veces sobre dos canales distintos, acoplándose a la lista concreta de canales activos.
+
+| Aspecto               | Sin Composite                                       | Con Composite                                             |
+|-----------------------|-----------------------------------------------------|-----------------------------------------------------------|
+| Duración del curso    | El llamador itera módulos y suma duraciones         | `courseTree.getDuration()` devuelve el total              |
+| Nuevos tipos de nodo  | Cambiar todos los clientes que iteran la lista      | Implementar `ICourseContent` en el nuevo tipo             |
+| Envío multi-canal     | El llamador hace `canal1.send(); canal2.send()`     | `compositeChannel.send()` despacha a todos               |
+| Añadir un canal nuevo | Modificar todos los llamadores                      | `compositeChannel.add(new SMSChannel())`                  |
+| Tratamiento uniforme  | `if (esHoja) … else iterarHijos`                    | Misma llamada `getDuration()` en hoja y compuesto         |
+
+### Diagrama — Árbol de contenido
+
+```
+          «interface»
+     ┌──────────────────────────────────┐
+     │         ICourseContent           │  ← Component
+     │  + id: string                    │
+     │  + title: string                 │
+     │  + getDescription(): string      │
+     │  + getDuration(): number         │
+     │  + getChildren(): ICourseContent[]│
+     │  + isLeaf(): boolean             │
+     └─────────────┬────────────────────┘
+                   │ implements
+        ┌──────────┴──────────────────┐
+        │                             │
+┌───────▼──────────┐       ┌──────────▼──────────────┐
+│  ModuleContent   │       │      CourseContent        │  ← Composite
+│  - module: Module│       │  - course: Course         │
+│  + getDuration() │       │  - children: ICourseContent[]│
+│    → 5 ó 10 min  │       │  + add(content)           │
+│  + isLeaf()→true │       │  + remove(content)        │
+│  + getChildren() │       │  + getDuration() → Σhijos │
+│    → []          │       │  + isLeaf()→false         │
+└──────────────────┘       └───────────────────────────┘
+     ↑ Leaf
+
+Árbol en tiempo de ejecución:
+  CourseContent("TypeScript Avanzado")
+  ├── ModuleContent("Módulo 1 — Tipos")       10 min (con video)
+  ├── ModuleContent("Módulo 2 — Genéricos")   10 min (con video)
+  └── ModuleContent("Módulo 3 — Texto")        5 min (sin video)
+                                   Total: 25 min
+```
+
+### Diagrama — Canal compuesto
+
+```
+          «interface»
+     ┌──────────────────────────────┐
+     │      INotificationChannel    │  ← Component (Bridge Implementor)
+     │  + send(to, subject, body)   │
+     └────────────┬─────────────────┘
+                  │ implements
+     ┌────────────┼──────────────────────────────────┐
+     │            │                                  │
+┌────▼──────────┐ ┌────────────────────────┐ ┌──────▼──────────────────┐
+│ EmailChannel  │ │CompositeNotification   │ │  ConsoleChannel         │
+│ + send(…)     │ │Channel                 │ │  + send(…)              │
+└───────────────┘ │ - channels: INotif[]   │ └─────────────────────────┘
+     ↑ Leaf       │ + add(channel)         │         ↑ Leaf
+                  │ + remove(channel)      │
+                  │ + send(…)              │
+                  │   → Promise.all(…)     │  ← Composite
+                  └────────────────────────┘
+                          │ contiene
+                  ┌───────┴──────────────┐
+                  │                      │
+            EmailChannel         ConsoleChannel
+```
+
+### Fragmentos de código
+
+**Component** — interfaz común para hojas y compuestos (`src/domain/composite/ICourseContent.ts`):
+```typescript
+export interface ICourseContent {
+  readonly id: string;
+  readonly title: string;
+  getDescription(): string;
+  getDuration(): number;
+  getChildren(): ICourseContent[];
+  isLeaf(): boolean;
+}
+```
+
+**Leaf** — nodo terminal que envuelve un Module (`src/domain/composite/ModuleContent.ts`):
+```typescript
+export class ModuleContent implements ICourseContent {
+  constructor(private readonly module: Module) {}
+
+  getDuration(): number {
+    return this.module.videoUrl ? 10 : 5; // minutos estimados
+  }
+  getChildren(): ICourseContent[] { return []; }
+  isLeaf(): boolean { return true; }
+}
+```
+
+**Composite** — nodo raíz que agrega hijos (`src/domain/composite/CourseContent.ts`):
+```typescript
+export class CourseContent implements ICourseContent {
+  private children: ICourseContent[] = [];
+
+  getDuration(): number {
+    return this.children.reduce((t, c) => t + c.getDuration(), 0);
+  }
+  add(content: ICourseContent): void { this.children.push(content); }
+  remove(content: ICourseContent): void {
+    this.children = this.children.filter(c => c !== content);
+  }
+  isLeaf(): boolean { return false; }
+}
+```
+
+**Canal Composite** — fanout concurrente (`src/infrastructure/notifications/channels/CompositeNotificationChannel.ts`):
+```typescript
+export class CompositeNotificationChannel implements INotificationChannel {
+  private channels: INotificationChannel[] = [];
+
+  add(channel: INotificationChannel): void { this.channels.push(channel); }
+  remove(channel: INotificationChannel): void {
+    this.channels = this.channels.filter(c => c !== channel);
+  }
+  async send(to: string, subject: string, body: string): Promise<void> {
+    await Promise.all(this.channels.map(c => c.send(to, subject, body)));
+  }
+}
+```
+
+**Uso en el Facade** — árbol construido y consultado sin conocer su estructura interna:
+```typescript
+const overview = await courseManagementFacade.getCourseOverview("course-abc");
+console.log(`Duración total: ${overview.totalDurationMinutes} minutos`);
+// → "Duración total: 25 minutos"
+
+// getDuration() funciona igual sobre hoja o compuesto (tratamiento uniforme)
+const modulo = new ModuleContent(algünMódulo);   // isLeaf() → true
+const curso   = new CourseContent(algúnCurso);   // isLeaf() → false
+curso.add(modulo);
+console.log(modulo.getDuration()); // 10
+console.log(curso.getDuration());  // 10 (suma de hijos)
+```
+
+### Composite vs iteración manual
+
+Sin Composite, cada nuevo lugar del código que necesite la duración total del curso debe conocer que un curso tiene módulos, que hay que iterar esa lista, y que la duración de cada módulo depende de si tiene `videoUrl`. Con Composite, esa lógica está encapsulada en `getDuration()` y el llamador no necesita conocer ningún detalle estructural. Si en el futuro un módulo pudiera contener sub-módulos, solo se añadiría un nuevo nodo Composite sin tocar ningún llamador existente.
+
+---
+
+## Patrón Facade — Simplificación de flujos complejos de coordinación
+
+### El problema
+
+El LMS tiene dos flujos que requieren coordinar múltiples servicios en un orden específico:
+
+**Flujo de inscripción** (hasta 4 subsistemas): verificar curso → procesar pago (si premium) → crear inscripción → enviar notificaciones. Sin Facade, el controlador de API tendría que importar y coordinar `CourseService`, `PaymentService`, `EnrollmentService` y dos clases de notificación, manejar la condicional del tipo de curso y gestionar errores en cada paso.
+
+**Flujo de creación de curso** (3 servicios + Composite): crear curso → añadir módulos → crear evaluación → construir árbol Composite. Además, `getCourseOverview` necesita lanzar tres consultas en paralelo y luego construir el árbol.
+
+| Aspecto                    | Sin Facade                                          | Con Facade                                              |
+|----------------------------|-----------------------------------------------------|---------------------------------------------------------|
+| Dependencias del llamador  | Importa 5+ servicios/clases                         | Importa 1 facade                                        |
+| Lógica condicional (pago)  | El llamador decide si llamar a PaymentService       | La Facade decide internamente según `course.type`       |
+| Consultas paralelas        | El llamador gestiona `Promise.all` manualmente      | `getCourseOverview` las orquesta internamente           |
+| Árbol Composite            | El llamador construye el árbol tras cada consulta   | La Facade construye y devuelve el árbol listo           |
+| Notificaciones fallidas    | El llamador decide si revertir o continuar          | La Facade usa best-effort (warn, no lanza)              |
+| Tests                      | Requieren mockear cada subsistema individualmente   | Se mockea la Facade completa                            |
+
+### Diagrama
+
+```
+                 ┌──────────────────────────────────────────────────┐
+                 │                 LearningFacade                   │  ← Facade
+                 │                                                  │
+  «llamador»     │  enrollStudent(userId, courseId, paymentInput?)   │
+  ────────────▶  │    1. courseService.getCourse()                  │
+                 │    2. paymentService.processPayment() [si premium]│
+                 │    3. enrollmentService.enroll()                  │
+                 │    4. enrollmentNotification.notify()             │
+                 │    5. paymentNotification.notify() [si hubo pago] │
+                 │                                                  │
+                 └──┬──────────┬────────────┬────────────┬──────────┘
+                    │          │            │            │
+            ┌───────▼─┐  ┌────▼────┐  ┌───▼─────┐  ┌──▼──────────────────┐
+            │ Course  │  │Payment  │  │Enrollment│  │  EnrollmentNotif.   │
+            │ Service │  │ Service │  │ Service  │  │  PaymentNotif.      │
+            └─────────┘  └─────────┘  └──────────┘  │  (CompositeChannel) │
+                                                     └────────────────────┘
+
+                 ┌──────────────────────────────────────────────────┐
+                 │           CourseManagementFacade                 │  ← Facade
+                 │                                                  │
+  «llamador»     │  createCourseWithContent(dto)                    │
+  ────────────▶  │    1. courseService.createCourse()               │
+                 │    2. courseService.addModule() × N              │
+                 │    3. evaluationService.createEvaluation() [opc] │
+                 │    4. buildContentTree() → CourseContent         │
+                 │                                                  │
+  «llamador»     │  getCourseOverview(courseId)                     │
+  ────────────▶  │    Promise.all([getCourse, getModules, getEvals])│
+                 │    buildContentTree() → CourseContent            │
+                 │    → { course, modules, evaluations, tree, min } │
+                 └──┬───────────────────┬─────────────────────────┘
+                    │                   │
+            ┌───────▼─┐         ┌───────▼──────────┐
+            │ Course  │         │  Evaluation       │
+            │ Service │         │  Service          │
+            └─────────┘         └──────────────────┘
+```
+
+### Fragmentos de código
+
+**LearningFacade** — punto de entrada del flujo de inscripción (`src/infrastructure/facades/LearningFacade.ts`):
+```typescript
+async enrollStudent(
+  userId: string,
+  courseId: string,
+  paymentInput?: PaymentInput
+): Promise<EnrollmentResultDTO> {
+  // Paso 1: verificar existencia y tipo del curso
+  const course = await this.courseService.getCourse(courseId);
+
+  // Paso 2: pago condicional (solo cursos premium)
+  let payment = undefined;
+  if (course.type === "premium") {
+    if (!paymentInput) throw new Error("Se requieren datos de pago para curso premium");
+    payment = await this.paymentService.processPayment({ userId, courseId, ...paymentInput });
+  }
+
+  // Paso 3: inscripción
+  const enrollment = await this.enrollmentService.enroll(userId, courseId);
+
+  // Paso 4: notificaciones (best-effort)
+  let notified = false;
+  try {
+    const user = await this.userRepository.findById(userId);
+    await this.enrollmentNotification.notify(user?.email ?? userId, {
+      courseName: course.title,
+      studentName: user?.name ?? userId,
+    });
+    if (payment) {
+      await this.paymentNotification.notify(user?.email ?? userId, {
+        userName: user?.name ?? userId,
+        amount: String(payment.amount),
+        provider: payment.provider,
+        transactionId: payment.transactionId ?? "N/A",
+      });
+    }
+    notified = true;
+  } catch (error) {
+    console.warn("[LearningFacade] Fallo al enviar notificaciones:", error);
+  }
+
+  return { enrollment, payment, notified };
+}
+```
+
+**CourseManagementFacade** — consultas en paralelo y árbol Composite (`src/infrastructure/facades/CourseManagementFacade.ts`):
+```typescript
+async getCourseOverview(courseId: string): Promise<CourseOverviewDTO> {
+  // Tres consultas en paralelo para minimizar latencia
+  const [course, modules, evaluations] = await Promise.all([
+    this.courseService.getCourse(courseId),
+    this.courseService.getCourseModules(courseId),
+    this.evaluationService.getEvaluationsByCourse(courseId),
+  ]);
+
+  const contentTree = this.buildContentTree(course, modules);
+  return {
+    course, modules, evaluations, contentTree,
+    totalDurationMinutes: contentTree.getDuration(),
+  };
+}
+
+private buildContentTree(course: Course, modules: Module[]): CourseContent {
+  const tree = new CourseContent(course);
+  modules.forEach(m => tree.add(new ModuleContent(m)));
+  return tree;
+}
+```
+
+**Wiring en el contenedor** (`src/container/index.ts`):
+```typescript
+// Composite: un canal que despacha a Email Y Console simultáneamente
+const compositeChannel = new CompositeNotificationChannel();
+compositeChannel.add(new EmailNotificationChannel());
+compositeChannel.add(new ConsoleNotificationChannel());
+
+export const learningFacade = new LearningFacade(
+  courseService,
+  paymentService,
+  enrollmentService,
+  new EnrollmentNotification(compositeChannel),
+  new PaymentNotification(compositeChannel),
+  userRepo
+);
+
+export const courseManagementFacade = new CourseManagementFacade(
+  courseService,
+  evaluationService
+);
+```
+
+### Facade vs coordinación manual
+
+La Facade no añade lógica de negocio — toda la validación real sigue en los servicios. Lo que aporta es **orden y ocultación de complejidad estructural**: el llamador no necesita saber que hay cuatro pasos, que el segundo es condicional, que el cuarto es best-effort o que las consultas de resumen pueden paralelizarse. Cambiar el flujo (por ejemplo, añadir verificación de cupo) requiere modificar solo la Facade, sin tocar ningún llamador.

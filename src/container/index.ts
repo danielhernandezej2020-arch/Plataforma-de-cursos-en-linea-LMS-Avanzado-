@@ -20,6 +20,13 @@ import { EnrollmentService } from "@/application/services/EnrollmentService";
 import { PaymentProviderRegistry } from "@/infrastructure/payments/PaymentProviderRegistry";
 import { LoggingPaymentDecorator } from "@/infrastructure/payments/decorators/LoggingPaymentDecorator";
 import { RetryPaymentDecorator } from "@/infrastructure/payments/decorators/RetryPaymentDecorator";
+import { EmailNotificationChannel } from "@/infrastructure/notifications/channels/EmailNotificationChannel";
+import { ConsoleNotificationChannel } from "@/infrastructure/notifications/channels/ConsoleNotificationChannel";
+import { CompositeNotificationChannel } from "@/infrastructure/notifications/channels/CompositeNotificationChannel";
+import { EnrollmentNotification } from "@/infrastructure/notifications/EnrollmentNotification";
+import { PaymentNotification } from "@/infrastructure/notifications/PaymentNotification";
+import { LearningFacade } from "@/infrastructure/facades/LearningFacade";
+import { CourseManagementFacade } from "@/infrastructure/facades/CourseManagementFacade";
 
 // ─── SINGLETON: Database ─────────────────────────────
 const prisma = db.getClient();
@@ -100,6 +107,32 @@ export const enrollmentService = new EnrollmentService(
   enrollmentRepo,
   courseRepo,
   paymentRepo
+);
+
+// ─── COMPOSITE: Canal de notificación compuesto ──────────
+// Un solo canal que despacha a Email Y Console simultáneamente.
+// Para añadir SMS u otro canal: compositeChannel.add(new SMSNotificationChannel())
+const compositeChannel = new CompositeNotificationChannel();
+compositeChannel.add(new EmailNotificationChannel());
+compositeChannel.add(new ConsoleNotificationChannel());
+
+// ─── Bridge + Composite: notificaciones con canal compuesto ──
+const enrollmentNotification = new EnrollmentNotification(compositeChannel);
+const paymentNotification = new PaymentNotification(compositeChannel);
+
+// ─── FACADES ─────────────────────────────────────────────
+export const learningFacade = new LearningFacade(
+  courseService,
+  paymentService,
+  enrollmentService,
+  enrollmentNotification,
+  paymentNotification,
+  userRepo
+);
+
+export const courseManagementFacade = new CourseManagementFacade(
+  courseService,
+  evaluationService
 );
 
 // Re-export repositories for direct access in API routes (e.g., seed, users)
