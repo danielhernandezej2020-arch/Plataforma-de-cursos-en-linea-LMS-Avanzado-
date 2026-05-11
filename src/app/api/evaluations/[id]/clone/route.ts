@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluationService } from "@/container";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const body = await request.json();
@@ -14,7 +16,8 @@ export async function POST(
     });
     return NextResponse.json(cloned, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Internal server error";
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

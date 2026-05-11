@@ -3,6 +3,8 @@ import { userRepository } from "@/container";
 import { v4 as uuidv4 } from "uuid";
 import { User } from "@/domain/entities/User";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -18,7 +20,8 @@ export async function POST(request: NextRequest) {
     const created = await userRepository.save(user);
     return NextResponse.json(created, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Internal server error";
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
