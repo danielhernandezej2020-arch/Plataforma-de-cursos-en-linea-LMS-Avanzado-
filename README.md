@@ -862,3 +862,586 @@ export const courseManagementFacade = new CourseManagementFacade(
 ### Facade vs coordinación manual
 
 La Facade no añade lógica de negocio — toda la validación real sigue en los servicios. Lo que aporta es **orden y ocultación de complejidad estructural**: el llamador no necesita saber que hay cuatro pasos, que el segundo es condicional, que el cuarto es best-effort o que las consultas de resumen pueden paralelizarse. Cambiar el flujo (por ejemplo, añadir verificación de cupo) requiere modificar solo la Facade, sin tocar ningún llamador.
+
+---
+
+## Patrones de Comportamiento en el Frontend
+
+Los cuatro patrones siguientes se implementaron sobre la capa de presentación (Next.js 14 + React 18 + TypeScript). Cada uno resuelve un problema concreto detectado en el código original de los componentes.
+
+---
+
+## Patrón Observer — Bus de eventos entre componentes
+
+### El problema
+
+La campana de notificaciones en `TopNav.tsx` mostraba un punto rojo **estático hardcodeado**, sin estar conectada a ningún evento real del sistema. No existía ningún mecanismo para que otras páginas le comunicaran "sucedió algo relevante". Añadir esa comunicación con props o Context API hubiera requerido pasar callbacks a través de varios niveles de layout.
+
+| Aspecto | Sin Observer | Con Observer |
+|---|---|---|
+| Notificaciones | Punto rojo siempre visible (hardcode) | Contador reactivo que refleja eventos reales |
+| Acoplamiento | Componentes deben conocerse mutuamente | Solo conocen el EventBus (interfaz) |
+| Añadir nuevo publicador | Modificar layout y props | `publish("notification:new", payload)` desde cualquier componente |
+| Desuscribirse | Manual y propenso a fugas | `useEventBus` lo hace en el cleanup del `useEffect` |
+
+### Diagrama
+
+```
+                 «Singleton»
+           ┌─────────────────────────┐
+           │        EventBus         │  ← Subject
+           │  + subscribe(event, fn) │
+           │  + publish(event, data) │
+           └──────┬──────────────────┘
+                  │
+    ┌─────────────┴──────────────────┐
+    │ publica                        │ suscribe
+    │                                │
+┌───▼────────────────┐    ┌──────────▼────────────────┐
+│  DashboardPage     │    │      TopNav               │
+│                    │    │  useEventBus(             │
+│  publish(          │    │    "notification:new",    │
+│    "notification:  │    │    () => setCount(c+1)    │
+│     new", {...}    │    │  )                        │
+│  )                 │    │  → muestra contador       │
+└────────────────────┘    └───────────────────────────┘
+```
+
+### Fragmentos de código
+
+**Contrato de eventos** (`src/app/patterns/observer/types.ts`):
+```typescript
+export type LMSEventType =
+  | "notification:new"
+  | "course:completed"
+  | "quiz:submitted"
+  | "checkout:success";
+
+export interface LMSEventPayload {
+  "notification:new": { message: string; type: "info" | "success" | "warning" };
+  "course:completed": { courseId: string; courseTitle: string };
+  // …
+}
+```
+
+**EventBus Singleton** (`src/app/patterns/observer/EventBus.ts`):
+```typescript
+class EventBusImpl {
+  private static instance: EventBusImpl;
+  private readonly listeners = new Map<LMSEventType, Set<EventHandler<any>>>();
+
+  private constructor() {}
+
+  static getInstance(): EventBusImpl {
+    if (!EventBusImpl.instance) {
+      EventBusImpl.instance = new EventBusImpl();
+    }
+    return EventBusImpl.instance;
+  }
+
+  subscribe<T extends LMSEventType>(event: T, handler: EventHandler<T>): () => void {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(handler);
+    return () => this.listeners.get(event)?.delete(handler);  // unsubscribe
+  }
+
+  publish<T extends LMSEventType>(event: T, payload: LMSEventPayload[T]): void {
+    this.listeners.get(event)?.forEach(handler => handler(payload));
+  }
+}
+export const eventBus = EventBusImpl.getInstance();
+```
+
+**Hook React para suscribirse** (`src/app/hooks/useEventBus.ts`):
+```typescript
+export function useEventBus<T extends LMSEventType>(
+  event: T,
+  handler: EventHandler<T>,
+): void {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;  // siempre fresco, sin re-suscribirse
+
+  useEffect(() => {
+    return eventBus.subscribe(event, payload => handlerRef.current(payload));
+  }, [event]); // se desuscribe automáticamente al desmontar
+}
+
+export function usePublish() {
+  return useCallback(<T extends LMSEventType>(event: T, payload: LMSEventPayload[T]) => {
+    eventBus.publish(event, payload);
+  }, []);
+}
+```
+
+**Publicador** (`src/app/(dashboard)/dashboard/page.tsx`):
+```typescript
+const publish = usePublish();
+
+useEffect(() => {
+  const t = setTimeout(() => {
+    setLoading(false);
+    // Notifica de cursos con progreso > 80%
+    MY_COURSES.filter(c => c.progress > 80).forEach(c => {
+      publish("notification:new", {
+        message: `"${c.title}" está al ${c.progress}% — ¡termínalo!`,
+        type: "info",
+      });
+    });
+  }, 1200);
+  return () => clearTimeout(t);
+}, [publish]);
+```
+
+**Suscriptor** (`src/app/components/layout/TopNav.tsx`):
+```typescript
+const [notifCount, setNotifCount] = useState(0);
+useEventBus("notification:new", () => setNotifCount(c => c + 1));
+
+// En el JSX — el badge solo aparece cuando hay notificaciones reales:
+{notifCount > 0 && (
+  <span style={{ /* badge sobre la campana */ }}>
+    {notifCount > 9 ? "9+" : notifCount}
+  </span>
+)}
+```
+
+### Observer vs Context API o props
+
+Con props habría que pasar un callback `onNotification` desde el layout raíz hasta `TopNav`, y cada página que quisiera notificar necesitaría recibirlo también. Con Context API se resolvería el prop drilling pero requeriría envolver toda la app en un Provider. El **EventBus** desacopla completamente a publicador y suscriptor: ninguno conoce al otro, y añadir un nuevo tipo de evento solo requiere extender el tipo `LMSEventType`.
+
+---
+
+## Patrón Strategy — Filtrado y ordenamiento del catálogo de cursos
+
+### El problema
+
+En `courses/page.tsx` la lógica de filtrado estaba **incrustada dentro del render** con `.filter()` directo. Adicionalmente había un **bug latente**: la variable `sort` se inicializaba y se actualizaba con el `<select>`, pero **nunca se aplicaba** a la lista de resultados — el ordenamiento era una ilusión visual.
+
+| Aspecto | Sin Strategy | Con Strategy |
+|---|---|---|
+| Filtrado | `if/else` inline en cada render | `strategy.filter(courses)` intercambiable |
+| Ordenamiento | Bug: `sort` ignorado completamente | `SORT_STRATEGIES[sort].sort(filtered)` |
+| Añadir nuevo criterio | Editar el componente | Crear una nueva clase que implemente `ICourseSortStrategy` |
+| Composición | Imposible combinar filtros | `ComposedFilterStrategy([catFilter, searchFilter])` |
+| Testabilidad | Requiere renderizar el componente | Las estrategias son clases puras, testeables en aislamiento |
+
+### Diagrama
+
+```
+  «interface»
+┌──────────────────────────────────┐
+│      ICourseFilterStrategy       │
+│  + name: string                  │
+│  + filter(courses): CourseData[] │
+└──────┬───────────────────────────┘
+       │ implementa
+┌──────┴────────────────────────────────────────────────┐
+│              │               │                        │
+▼              ▼               ▼                        ▼
+AllCourses  Category        Search            Composed
+Strategy    FilterStrategy  FilterStrategy    FilterStrategy
+            (category)      (query)           (strategies[])
+                                              → aplica en cadena
+
+  «interface»
+┌──────────────────────────────────┐
+│       ICourseSortStrategy        │
+│  + name: string                  │
+│  + sort(courses): CourseData[]   │
+└──────┬───────────────────────────┘
+       │ implementa
+┌──────┴─────────────────────────────────────────┐
+│         │          │          │                │
+▼         ▼          ▼          ▼                ▼
+Featured Newest  HighestRated  PriceAsc       PriceDesc
+Sort     Sort    Sort          Strategy       Strategy
+```
+
+### Fragmentos de código
+
+**Contratos** (`src/app/patterns/strategies/CourseFilterStrategy.ts`):
+```typescript
+export interface ICourseFilterStrategy {
+  readonly name: string;
+  filter(courses: CourseData[]): CourseData[];
+}
+
+export interface ICourseSortStrategy {
+  readonly name: string;
+  sort(courses: CourseData[]): CourseData[];
+}
+```
+
+**Estrategias concretas** (misma ubicación):
+```typescript
+export class ComposedFilterStrategy implements ICourseFilterStrategy {
+  readonly name = "composed";
+  constructor(private readonly strategies: ICourseFilterStrategy[]) {}
+  filter(courses: CourseData[]): CourseData[] {
+    return this.strategies.reduce((acc, s) => s.filter(acc), courses);
+  }
+}
+
+export class PriceAscStrategy implements ICourseSortStrategy {
+  readonly name = "Price: Low→High";
+  sort(courses: CourseData[]): CourseData[] {
+    return [...courses].sort((a, b) => a.price - b.price);
+  }
+}
+
+export const SORT_STRATEGIES: Record<string, ICourseSortStrategy> = {
+  "Featured":         new FeaturedSortStrategy(),
+  "Newest":           new NewestSortStrategy(),
+  "Highest Rated":    new HighestRatedSortStrategy(),
+  "Price: Low→High":  new PriceAscStrategy(),
+  "Price: High→Low":  new PriceDescStrategy(),
+};
+```
+
+**Hook que consume las estrategias** (`src/app/hooks/useCourseFilter.ts`):
+```typescript
+export function useCourseFilter(allCourses: CourseData[]) {
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort]     = useState("Featured");
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const filterStrategy = new ComposedFilterStrategy([
+      filter === "all" ? new AllCoursesStrategy() : new CategoryFilterStrategy(filter),
+      new SearchFilterStrategy(search),
+    ]);
+    const sortStrategy = SORT_STRATEGIES[sort] ?? SORT_STRATEGIES["Featured"];
+    // Bug corregido: sort ahora sí se aplica
+    return sortStrategy.sort(filterStrategy.filter(allCourses));
+  }, [allCourses, filter, sort, search]);
+
+  return { filtered, filter, sort, search, setFilter, setSort, setSearch, reset };
+}
+```
+
+**Uso en el componente** (`src/app/(dashboard)/courses/page.tsx`):
+```typescript
+// Antes (7 líneas de lógica inline + bug de sort):
+const filtered = ALL_COURSES.filter(c => {
+  const matchCat = filter === "all" || c.category === filter;
+  const matchSearch = !search || c.title.toLowerCase().includes(search.toLowerCase()) …
+  return matchCat && matchSearch;
+  // sort nunca se aplicaba ← bug
+});
+
+// Después (1 línea, bug corregido, extensible):
+const { filtered, filter, sort, search, setFilter, setSort, setSearch, reset } =
+  useCourseFilter(ALL_COURSES);
+```
+
+---
+
+## Patrón Command — Navegación con historial en el quiz
+
+### El problema
+
+En `quiz/page.tsx` la navegación entre preguntas se hacía con `setCurrent(i)` directamente. El botón "Previous" ejecutaba `setCurrent(c => Math.max(0, c - 1))` sin memoria de por dónde se había llegado. No había historial de acciones: una vez que el usuario respondía una pregunta y avanzaba, no podía retroceder y ver (ni cambiar) la respuesta anterior con trazabilidad.
+
+| Aspecto | Sin Command | Con Command |
+|---|---|---|
+| Navegación hacia atrás | Resta 1 al índice (lineal) | `undo()` revierte la última acción (no lineal) |
+| Historial de acciones | No existe | Stack de comandos ejecutados |
+| Deshacer respuesta | Imposible | `undo()` restaura la respuesta anterior |
+| Limpieza al reiniciar | `setCurrent(0)` directo | `clearHistory()` limpia el stack |
+| Testabilidad | Lógica acoplada al componente | Comandos testeables como clases puras |
+
+### Diagrama
+
+```
+  «interface»
+┌─────────────────────────────┐
+│          ICommand           │
+│  + execute(): void          │
+│  + undo(): void             │
+│  + description: string      │
+└──────────┬──────────────────┘
+           │ implementa
+┌──────────┴──────────────────────────┐
+│                                     │
+▼                                     ▼
+NavigateQuestionCommand        AnswerQuestionCommand
+- previousIndex: number        - previousAnswer: number
+- targetIndex: number          - questionIndex: number
++ execute() → setCurrent(i)    + execute() → setAnswers(…)
++ undo()    → setCurrent(prev) + undo()    → setAnswers(prev)
+
+Hook:
+┌────────────────────────────────────────┐
+│          useCommandHistory             │
+│  history: ICommand[]  (stack)          │
+│  + execute(cmd) → cmd.execute() + push │
+│  + undo()       → pop + last.undo()   │
+│  + canUndo: boolean                    │
+└────────────────────────────────────────┘
+```
+
+### Fragmentos de código
+
+**Interfaz y comandos concretos** (`src/app/patterns/commands/QuizCommands.ts`):
+```typescript
+export interface ICommand {
+  execute(): void;
+  undo(): void;
+  readonly description: string;
+}
+
+export class NavigateQuestionCommand implements ICommand {
+  private previousIndex = -1;
+
+  constructor(
+    private readonly getCurrent: () => number,
+    private readonly setCurrent: Dispatch<SetStateAction<number>>,
+    private readonly targetIndex: number,
+  ) { this.description = `Navigate to question ${targetIndex + 1}`; }
+
+  execute(): void {
+    this.previousIndex = this.getCurrent();   // guarda el índice actual
+    this.setCurrent(this.targetIndex);
+  }
+
+  undo(): void {
+    if (this.previousIndex !== -1) this.setCurrent(this.previousIndex);
+  }
+}
+
+export class AnswerQuestionCommand implements ICommand {
+  private previousAnswer = -1;
+
+  execute(): void {
+    this.previousAnswer = this.getAnswers()[this.questionIndex] ?? -1; // guarda
+    this.setAnswers(prev => { const n = [...prev]; n[this.questionIndex] = this.optionIndex; return n; });
+  }
+
+  undo(): void {
+    const prev = this.previousAnswer;
+    this.setAnswers(answers => { const n = [...answers]; n[this.questionIndex] = prev; return n; });
+  }
+}
+```
+
+**Hook de historial** (`src/app/hooks/useCommandHistory.ts`):
+```typescript
+export function useCommandHistory() {
+  const [history, setHistory] = useState<ICommand[]>([]);
+
+  const execute = useCallback((command: ICommand) => {
+    command.execute();
+    setHistory(prev => [...prev, command]);
+  }, []);
+
+  const undo = useCallback(() => {
+    setHistory(prev => {
+      if (prev.length === 0) return prev;
+      prev[prev.length - 1].undo();      // deshace el último
+      return prev.slice(0, -1);          // lo saca del stack
+    });
+  }, []);
+
+  return { execute, undo, canUndo: history.length > 0, clearHistory };
+}
+```
+
+**Uso en el componente** (`src/app/(dashboard)/quiz/page.tsx`):
+```typescript
+const { execute, undo, canUndo, clearHistory } = useCommandHistory();
+const currentRef = useRef(current);
+currentRef.current = current;   // ref para que los comandos lean el estado fresco
+
+// Responder → crea un comando con soporte de undo
+const select = (optIdx: number) => {
+  execute(new AnswerQuestionCommand(current, optIdx, () => answersRef.current, setAnswers));
+};
+
+// Navegar → Next crea un NavigateCommand
+<button onClick={() => execute(new NavigateQuestionCommand(
+  () => currentRef.current, setCurrent, current + 1,
+))}>Next →</button>
+
+// Botón "Previous" = undo del último NavigateCommand
+<button onClick={undo} disabled={!canUndo}>← Previous</button>
+```
+
+---
+
+## Patrón State — Máquina de estados del checkout
+
+### El problema
+
+En `checkout/page.tsx` el flujo de tres pasos (selección de plan → pago → éxito) se gestionaba con `step: "plan" | "payment" | "success"` y múltiples `useState` sueltos. La lógica de transición estaba **dispersa en handlers independientes**: `setStep("payment")` en un botón, `setStep("plan")` en otro, y `setStep("success")` dentro de la función `pay()`. Añadir un paso nuevo (p.ej. "confirm") requería modificar varios puntos distintos del componente.
+
+| Aspecto | Sin State | Con State |
+|---|---|---|
+| Transiciones | `setStep(…)` dispersos en handlers | Encapsuladas en `state.next(ctx)` / `state.back(ctx)` |
+| Lógica del botón "Atrás" | Siempre visible, `setStep("plan")` hardcodeado | `showBack()` decide si el estado lo permite |
+| Label del botón de acción | Calculado inline con ternarios | `state.getLabel(ctx)` por estado |
+| Añadir un paso nuevo | Modificar múltiples handlers y renders | Nueva clase que implementa `ICheckoutState` |
+| Estado terminal | Condición manual | `SuccessState.canProceed()` devuelve `false` |
+
+### Diagrama
+
+```
+  «interface»
+┌──────────────────────────────────────────┐
+│             ICheckoutState               │
+│  + name: "plan" | "payment" | "success"  │
+│  + canProceed(ctx): boolean              │
+│  + next(ctx): void                       │
+│  + back(ctx): void                       │
+│  + getLabel(ctx): string                 │
+│  + showBack(ctx): boolean                │
+└──────────┬───────────────────────────────┘
+           │ implementa
+┌──────────┴─────────────────────────────────────┐
+│                  │                             │
+▼                  ▼                             ▼
+PlanSelectionState  PaymentState           SuccessState
+next() → si free:   next() → simula pago   canProceed()→false
+  redirect /dash      → SuccessState       (estado terminal)
+  si premium →      back() →
+  PaymentState      PlanSelectionState
+back() → no-op
+
+         «Contexto»
+┌─────────────────────────────────────────┐
+│            CheckoutContext              │
+│  - currentState: ICheckoutState         │
+│  + data: CheckoutData                   │
+│  + proceed()  → currentState.next(this) │
+│  + goBack()   → currentState.back(this) │
+│  + transition(state) → cambia estado    │
+│  + patchData(patch)  → actualiza datos  │
+└─────────────────────────────────────────┘
+```
+
+### Fragmentos de código
+
+**Interfaz y contexto** (`src/app/patterns/states/CheckoutState.ts`):
+```typescript
+export interface ICheckoutState {
+  readonly name: "plan" | "payment" | "success";
+  canProceed(ctx: CheckoutContext): boolean;
+  next(ctx: CheckoutContext): void;
+  back(ctx: CheckoutContext): void;
+  getLabel(ctx: CheckoutContext): string;
+  showBack(ctx: CheckoutContext): boolean;
+}
+
+export class CheckoutContext {
+  private currentState: ICheckoutState;
+  public data: CheckoutData;
+  private readonly onUpdate: () => void;
+
+  constructor(onUpdate: () => void) {
+    this.onUpdate = onUpdate;
+    this.data = { selectedPlan: "premium", planPrice: 79, payMethod: "card", … };
+    this.currentState = new PlanSelectionState();
+  }
+
+  transition(state: ICheckoutState): void {
+    this.currentState = state;
+    this.onUpdate();   // fuerza re-render en React
+  }
+
+  patchData(patch: Partial<CheckoutData>): void {
+    this.data = { ...this.data, ...patch };
+    this.onUpdate();
+  }
+
+  proceed(): void { this.currentState.next(this); }
+  goBack():  void { this.currentState.back(this); }
+}
+```
+
+**Estado concreto PaymentState** (misma ubicación):
+```typescript
+export class PaymentState implements ICheckoutState {
+  readonly name = "payment" as const;
+
+  canProceed(ctx: CheckoutContext): boolean { return !ctx.data.loading; }
+
+  next(ctx: CheckoutContext): void {
+    ctx.patchData({ loading: true });
+    setTimeout(() => {
+      ctx.patchData({ loading: false });
+      ctx.transition(new SuccessState());   // transición encapsulada aquí
+    }, 1800);
+  }
+
+  back(ctx: CheckoutContext): void { ctx.transition(new PlanSelectionState()); }
+
+  getLabel(ctx: CheckoutContext): string {
+    if (ctx.data.loading) return "Processing...";
+    const total = ctx.data.planPrice * (ctx.data.couponApplied ? 0.8 : 1);
+    return `Pay $${total.toFixed(0)} →`;
+  }
+
+  showBack(_ctx: CheckoutContext): boolean { return true; }
+}
+```
+
+**Hook React** (`src/app/hooks/useCheckoutStateMachine.ts`):
+```typescript
+export function useCheckoutStateMachine() {
+  const [, setTick] = useState(0);  // forceUpdate
+  const ctxRef = useRef<CheckoutContext | null>(null);
+
+  if (!ctxRef.current) {
+    ctxRef.current = new CheckoutContext(() => setTick(t => t + 1));
+  }
+  const ctx = ctxRef.current;
+
+  return {
+    stepName:   ctx.getStepName(),
+    data:       { ...ctx.data },
+    canProceed: ctx.canProceed(),
+    proceed:    useCallback(() => ctx.proceed(), [ctx]),
+    goBack:     useCallback(() => ctx.goBack(), [ctx]),
+    showBack:   ctx.showBack(),
+    getLabel:   () => ctx.getLabel(),
+    updateData: useCallback((patch) => ctx.patchData(patch), [ctx]),
+  };
+}
+```
+
+**Uso en el componente** (`src/app/checkout/page.tsx`):
+```typescript
+// Antes (6 useState + lógica dispersa):
+const [step, setStep]         = useState<CheckoutStep>("plan");
+const [loading, setLoading]   = useState(false);
+const [payMethod, setPayMethod] = useState("card");
+// …
+onClick={() => plan.price === 0 ? window.location.href="/dashboard" : setStep("payment")}
+
+// Después (1 hook, lógica en estados):
+const { stepName, data, proceed, goBack, showBack, getLabel, updateData } =
+  useCheckoutStateMachine();
+// …
+<button onClick={proceed}>{getLabel()}</button>
+{showBack && <button onClick={goBack}>← Back</button>}
+```
+
+---
+
+## Tabla resumen de todos los patrones implementados
+
+| # | Patrón | Tipo | Capa | Ubicación principal | Caso de uso |
+|---|--------|------|------|---------------------|-------------|
+| 1 | **Singleton** | Creacional | Backend | `src/infrastructure/database/` + `PaymentProviderRegistry` | Única instancia de `PrismaClient` y del registro de proveedores de pago |
+| 2 | **Factory Method** | Creacional | Backend | `src/infrastructure/factories/` | Crear `Quiz`, `Exam`, `Task` sin acoplar al servicio con la clase concreta |
+| 3 | **Abstract Factory** | Creacional | Backend | `src/infrastructure/factories/` | Familias de contenido (FreeTierContentFactory vs PremiumTierContentFactory) |
+| 4 | **Builder** | Creacional | Backend | `src/domain/builders/` | Ensamblar `Course`, `Evaluation`, `Certificate` paso a paso con API fluida |
+| 5 | **Prototype** | Creacional | Backend | `src/infrastructure/prototypes/` | Clonar evaluaciones y emitir certificados en lote |
+| 6 | **Adapter** | Estructural | Backend | `src/infrastructure/payments/` | Adaptar `StripeSDK` y `PayPalSDK` a `IPaymentProvider` |
+| 7 | **Decorator** | Estructural | Backend | `src/infrastructure/payments/decorators/` | Añadir logging y reintentos a cualquier `IPaymentProvider` sin modificarlo |
+| 8 | **Bridge** | Estructural | Backend | `src/infrastructure/notifications/` | Desacoplar tipo de notificación del canal de entrega (Email, Console…) |
+| 9 | **Composite** | Estructural | Backend | `src/domain/composite/` + `channels/` | Árbol de contenido del curso; fanout a múltiples canales con un solo `send()` |
+| 10 | **Facade** | Estructural | Backend | `src/infrastructure/facades/` | Ocultar la complejidad del flujo de inscripción y de gestión de cursos |
+| 11 | **Observer** | Comportamiento | Frontend | `src/app/patterns/observer/` + `hooks/useEventBus.ts` | Bus de eventos entre `DashboardPage` (publicador) y `TopNav` (suscriptor) |
+| 12 | **Strategy** | Comportamiento | Frontend | `src/app/patterns/strategies/` + `hooks/useCourseFilter.ts` | Filtrado y ordenamiento intercambiable del catálogo de cursos |
+| 13 | **Command** | Comportamiento | Frontend | `src/app/patterns/commands/` + `hooks/useCommandHistory.ts` | Navegación con undo/redo en el quiz |
+| 14 | **State** | Comportamiento | Frontend | `src/app/patterns/states/` + `hooks/useCheckoutStateMachine.ts` | Máquina de estados del flujo de checkout (plan → pago → éxito) |

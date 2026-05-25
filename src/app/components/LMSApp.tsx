@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -89,10 +89,10 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  programming: "var(--lime)",
-  "data-science": "var(--teal)",
-  design: "var(--purple)",
-  business: "var(--gold)",
+  programming: "var(--cyan)",
+  "data-science": "var(--emerald)",
+  design: "var(--violet)",
+  business: "var(--amber)",
   general: "var(--muted)",
 };
 
@@ -106,7 +106,7 @@ function LogLine({ log }: { log: ApiLog }) {
     log.status >= 400
       ? "#ff5a5a"
       : log.status >= 200
-        ? "var(--lime)"
+        ? "var(--cyan)"
         : "var(--muted)";
   return (
     <div
@@ -120,21 +120,21 @@ function LogLine({ log }: { log: ApiLog }) {
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span
           style={{
-            color: log.method === "POST" ? "var(--orange)" : "var(--teal)",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 500,
+            color: log.method === "POST" ? "var(--amber)" : "var(--emerald)",
+            fontFamily: "var(--font-plex)",
+            fontWeight: 400,
           }}
         >
           {log.method}
         </span>
-        <span style={{ color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: "var(--muted)", fontFamily: "var(--font-plex)" }}>
           {log.url}
         </span>
         <span
           style={{
             marginLeft: "auto",
             color: statusColor,
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-plex)",
           }}
         >
           {log.status}
@@ -142,8 +142,8 @@ function LogLine({ log }: { log: ApiLog }) {
         {log.pattern && (
           <span
             style={{
-              background: "rgba(124,92,252,0.2)",
-              color: "var(--purple)",
+              background: "rgba(167,139,250,0.2)",
+              color: "var(--violet)",
               borderRadius: 3,
               padding: "1px 5px",
               fontSize: 10,
@@ -190,11 +190,9 @@ function CertificateDisplay({
     <div style={{ animation: "fadeUp 0.6s ease both" }}>
       <div
         style={{
-          background: isVerified
-            ? "linear-gradient(135deg, #1a1206 0%, #221a00 50%, #1a1206 100%)"
-            : "linear-gradient(135deg, #0a0f0a 0%, #0d1a0d 50%, #0a0f0a 100%)",
-          border: `2px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`,
-          borderRadius: 16,
+          background: "var(--canvas-soft)",
+          border: "1px solid var(--hairline)",
+          borderRadius: 8,
           padding: "40px 48px",
           position: "relative",
           overflow: "hidden",
@@ -221,39 +219,16 @@ function CertificateDisplay({
                 right: i % 2 === 1 ? 0 : "auto",
                 width: 60,
                 height: 60,
-                borderTop:
-                  i < 2
-                    ? `2px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`
-                    : "none",
-                borderBottom:
-                  i >= 2
-                    ? `2px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`
-                    : "none",
-                borderLeft:
-                  i % 2 === 0
-                    ? `2px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`
-                    : "none",
-                borderRight:
-                  i % 2 === 1
-                    ? `2px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`
-                    : "none",
+                borderTop: i < 2 ? "1px solid rgba(255,255,255,0.15)" : "none",
+                borderBottom: i >= 2 ? "1px solid rgba(255,255,255,0.15)" : "none",
+                borderLeft: i % 2 === 0 ? "1px solid rgba(255,255,255,0.15)" : "none",
+                borderRight: i % 2 === 1 ? "1px solid rgba(255,255,255,0.15)" : "none",
                 opacity: 0.6,
               }}
             />
           );
         })}
 
-        {/* Glow */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: isVerified
-              ? "radial-gradient(ellipse at 50% 0%, rgba(255,209,102,0.08) 0%, transparent 60%)"
-              : "radial-gradient(ellipse at 50% 0%, rgba(186,255,41,0.06) 0%, transparent 60%)",
-            pointerEvents: "none",
-          }}
-        />
 
         {/* Badge */}
         <div
@@ -268,16 +243,14 @@ function CertificateDisplay({
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              background: isVerified
-                ? "rgba(255,209,102,0.15)"
-                : "rgba(186,255,41,0.12)",
-              border: `1px solid ${isVerified ? "var(--gold)" : "var(--lime)"}`,
-              borderRadius: 100,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 9999,
               padding: "6px 16px",
               fontSize: 12,
-              fontFamily: "var(--font-mono)",
-              color: isVerified ? "var(--gold)" : "var(--lime)",
-              letterSpacing: "0.1em",
+              fontFamily: "var(--font-plex)",
+              color: "var(--body-mid)",
+              letterSpacing: "1px",
             }}
           >
             {isVerified
@@ -300,15 +273,9 @@ function CertificateDisplay({
         <h2
           style={{
             fontSize: 36,
-            fontWeight: 800,
+            fontWeight: 400,
             margin: "0 0 8px",
-            background: isVerified
-              ? "linear-gradient(90deg, #ffd166, #ffb347, #ffd166)"
-              : "linear-gradient(90deg, var(--lime), #e0ff8a, var(--lime))",
-            backgroundSize: "200% auto",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            animation: "shimmer 3s linear infinite",
+            color: "var(--ink)",
           }}
         >
           {userName}
@@ -326,7 +293,7 @@ function CertificateDisplay({
         <h3
           style={{
             fontSize: 22,
-            fontWeight: 700,
+            fontWeight: 400,
             color: "var(--text)",
             margin: "0 0 32px",
           }}
@@ -357,9 +324,9 @@ function CertificateDisplay({
             </p>
             <p
               style={{
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-plex)",
                 fontSize: 12,
-                color: isVerified ? "var(--gold)" : "var(--lime)",
+                color: "var(--body-mid)",
                 margin: 0,
               }}
             >
@@ -380,7 +347,7 @@ function CertificateDisplay({
             </p>
             <p
               style={{
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-plex)",
                 fontSize: 12,
                 color: "var(--text)",
                 margin: 0,
@@ -408,9 +375,9 @@ function CertificateDisplay({
               </p>
               <p
                 style={{
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-plex)",
                   fontSize: 11,
-                  color: "var(--teal)",
+                  color: "var(--emerald)",
                   margin: 0,
                 }}
               >
@@ -452,15 +419,14 @@ function QuizUI({
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: "var(--teal)",
-            boxShadow: "0 0 8px var(--teal)",
+            background: "var(--emerald)",
           }}
         />
         <span
           style={{
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-plex)",
             fontSize: 12,
-            color: "var(--teal)",
+            color: "var(--emerald)",
           }}
         >
           {evaluation.title}
@@ -468,7 +434,7 @@ function QuizUI({
         <span
           style={{
             marginLeft: "auto",
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-plex)",
             fontSize: 11,
             color: "var(--muted)",
           }}
@@ -482,7 +448,7 @@ function QuizUI({
           key={qi}
           style={{
             background: "var(--surface2)",
-            borderRadius: 10,
+            borderRadius: 8,
             border: "1px solid var(--border)",
             padding: "16px 20px",
             marginBottom: 12,
@@ -491,7 +457,7 @@ function QuizUI({
           <p
             style={{
               margin: "0 0 12px",
-              fontWeight: 600,
+              fontWeight: 400,
               fontSize: 14,
               color: "var(--text)",
             }}
@@ -499,7 +465,7 @@ function QuizUI({
             <span
               style={{
                 color: "var(--muted)",
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-plex)",
                 marginRight: 8,
               }}
             >
@@ -523,13 +489,13 @@ function QuizUI({
                     alignItems: "center",
                     gap: 10,
                     background: selected
-                      ? "var(--lime-dim)"
+                      ? "var(--cyan-dim)"
                       : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${selected ? "var(--lime)" : "var(--border)"}`,
+                    border: `1px solid ${selected ? "var(--cyan)" : "var(--border)"}`,
                     borderRadius: 7,
                     padding: "8px 14px",
                     cursor: "pointer",
-                    color: selected ? "var(--lime)" : "var(--muted)",
+                    color: selected ? "var(--cyan)" : "var(--muted)",
                     fontSize: 13,
                     textAlign: "left",
                     transition: "all 0.15s",
@@ -540,13 +506,13 @@ function QuizUI({
                       width: 18,
                       height: 18,
                       borderRadius: "50%",
-                      border: `1.5px solid ${selected ? "var(--lime)" : "var(--border)"}`,
+                      border: `1.5px solid ${selected ? "var(--cyan)" : "var(--border)"}`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                       fontSize: 10,
-                      background: selected ? "var(--lime)" : "transparent",
+                      background: selected ? "var(--cyan)" : "transparent",
                       color: selected ? "var(--bg)" : "transparent",
                     }}
                   >
@@ -566,13 +532,13 @@ function QuizUI({
         style={{
           width: "100%",
           padding: "14px 24px",
-          background: allAnswered ? "var(--lime)" : "var(--surface2)",
+          background: allAnswered ? "var(--cyan)" : "var(--surface2)",
           color: allAnswered ? "var(--bg)" : "var(--muted)",
           border: "none",
-          borderRadius: 10,
+          borderRadius: 8,
           cursor: allAnswered ? "pointer" : "not-allowed",
-          fontFamily: "var(--font-syne)",
-          fontWeight: 700,
+          fontFamily: "var(--font-bricolage)",
+          fontWeight: 400,
           fontSize: 15,
           transition: "all 0.2s",
           letterSpacing: "0.02em",
@@ -947,70 +913,48 @@ export default function LMSApp({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          background: "rgba(8,8,16,0.85)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid var(--border)",
+          background: "var(--canvas)",
+          borderBottom: "1px solid var(--hairline)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: "var(--lime)",
-              clipPath:
-                "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "var(--font-syne)",
-              fontWeight: 800,
-              fontSize: 18,
-              letterSpacing: "0.05em",
-            }}
-          >
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+          <div style={{
+            width: 30, height: 30, background: "transparent", borderRadius: 4,
+            border: "1px solid var(--hairline)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, fontWeight: 400, color: "var(--ink)", fontFamily: "var(--font-mono)",
+          }}>N</div>
+          <span style={{ fontFamily: "var(--font-bricolage)", fontWeight: 400, fontSize: 18, color: "var(--text)", letterSpacing: "-0.03em" }}>
             NEXUS
           </span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {["Courses", "Demo", "About"].map((item) => (
+        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {[
+            { label: "Home", href: "/" },
+            { label: "Courses", href: "/courses" },
+            { label: "Dashboard", href: "/dashboard" },
+          ].map((item) => (
             <a
-              key={item}
-              href={item === "Demo" ? "#demo" : "#"}
+              key={item.label}
+              href={item.href}
               style={{
-                color: "var(--muted)",
-                fontSize: 13,
-                textDecoration: "none",
-                fontFamily: "var(--font-outfit)",
-                letterSpacing: "0.02em",
-                transition: "color 0.15s",
+                color: "var(--muted2)", fontSize: 13, textDecoration: "none",
+                fontFamily: "var(--font-dm)", padding: "6px 12px",
+                borderRadius: "var(--radius-sm)", transition: "color 0.15s",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.color = "var(--text)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "var(--muted)")
-              }
             >
-              {item}
+              {item.label}
             </a>
           ))}
-          <button
-            style={{
-              background: "var(--lime)",
-              color: "var(--bg)",
-              border: "none",
-              borderRadius: 7,
-              padding: "7px 18px",
-              fontFamily: "var(--font-syne)",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
+          <a href="/login" style={{
+            background: "#ffffff", color: "#0a0a0a", border: "none",
+            borderRadius: 9999, padding: "7px 18px",
+            fontFamily: "var(--font-sans)", fontWeight: 400, fontSize: 13,
+            cursor: "pointer", textDecoration: "none",
+            display: "inline-flex", alignItems: "center",
+          }}>
             Get Started
-          </button>
+          </a>
         </div>
       </nav>
 
@@ -1025,19 +969,6 @@ export default function LMSApp({
           overflow: "hidden",
         }}
       >
-        {/* Mesh gradient background */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background: `
-            radial-gradient(ellipse 80% 50% at 20% 50%, rgba(186,255,41,0.06) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,217,204,0.05) 0%, transparent 60%),
-            radial-gradient(ellipse 40% 60% at 60% 80%, rgba(124,92,252,0.04) 0%, transparent 60%)
-          `,
-          }}
-        />
 
         <div
           style={{
@@ -1063,16 +994,16 @@ export default function LMSApp({
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: "var(--lime)",
+                  background: "var(--cyan)",
                   display: "inline-block",
-                  animation: "pulse-glow 2s ease-in-out infinite",
+                  animation: "pulse-cyan 2s ease-in-out infinite",
                 }}
               />
               <span
                 style={{
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-plex)",
                   fontSize: 11,
-                  color: "var(--lime)",
+                  color: "var(--cyan)",
                   letterSpacing: "0.1em",
                 }}
               >
@@ -1082,7 +1013,7 @@ export default function LMSApp({
             <h1
               style={{
                 fontSize: 72,
-                fontWeight: 800,
+                fontWeight: 400,
                 lineHeight: 1.0,
                 margin: "0 0 24px",
                 letterSpacing: "-0.02em",
@@ -1091,16 +1022,7 @@ export default function LMSApp({
             >
               Master
               <br />
-              <span
-                style={{
-                  background:
-                    "linear-gradient(90deg, var(--lime) 0%, #e0ff8a 50%, var(--teal) 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Software
-              </span>
+              <span>Software</span>
               <br />
               Architecture
             </h1>
@@ -1130,19 +1052,19 @@ export default function LMSApp({
                 onClick={startDemo}
                 disabled={loading}
                 style={{
-                  background: "var(--lime)",
+                  background: "var(--cyan)",
                   color: "var(--bg)",
                   border: "none",
-                  borderRadius: 10,
+                  borderRadius: 8,
                   padding: "14px 28px",
-                  fontFamily: "var(--font-syne)",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-bricolage)",
+                  fontWeight: 400,
                   fontSize: 15,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  animation: "pulse-glow 2s ease-in-out infinite",
+                  animation: "pulse-cyan 2s ease-in-out infinite",
                 }}
               >
                 {loading ? "Starting…" : "▶  Run Live Demo"}
@@ -1153,10 +1075,10 @@ export default function LMSApp({
                   background: "transparent",
                   color: "var(--text)",
                   border: "1px solid var(--border)",
-                  borderRadius: 10,
+                  borderRadius: 8,
                   padding: "14px 28px",
-                  fontFamily: "var(--font-syne)",
-                  fontWeight: 600,
+                  fontFamily: "var(--font-bricolage)",
+                  fontWeight: 400,
                   fontSize: 15,
                   cursor: "pointer",
                   textDecoration: "none",
@@ -1182,19 +1104,19 @@ export default function LMSApp({
               {
                 label: "Courses",
                 value: courses.length,
-                accent: "var(--lime)",
+                accent: "var(--cyan)",
               },
               {
                 label: "Free Courses",
                 value: courses.filter((c) => c.type === "free").length,
-                accent: "var(--teal)",
+                accent: "var(--emerald)",
               },
               {
                 label: "Premium",
                 value: courses.filter((c) => c.type === "premium").length,
-                accent: "var(--orange)",
+                accent: "var(--amber)",
               },
-              { label: "Design Patterns", value: 4, accent: "var(--purple)" },
+              { label: "Design Patterns", value: 4, accent: "var(--violet)" },
             ].map((stat) => (
               <div
                 key={stat.label}
@@ -1202,7 +1124,7 @@ export default function LMSApp({
                   background: "var(--surface)",
                   border: "1px solid var(--border)",
                   borderLeft: `3px solid ${stat.accent}`,
-                  borderRadius: 10,
+                  borderRadius: 8,
                   padding: "14px 20px",
                   display: "flex",
                   alignItems: "center",
@@ -1214,15 +1136,15 @@ export default function LMSApp({
                   style={{
                     color: "var(--muted)",
                     fontSize: 12,
-                    fontFamily: "var(--font-outfit)",
+                    fontFamily: "var(--font-dm)",
                   }}
                 >
                   {stat.label}
                 </span>
                 <span
                   style={{
-                    fontFamily: "var(--font-syne)",
-                    fontWeight: 800,
+                    fontFamily: "var(--font-bricolage)",
+                    fontWeight: 400,
                     fontSize: 24,
                     color: stat.accent,
                   }}
@@ -1251,49 +1173,49 @@ export default function LMSApp({
             name: "DatabaseClient",
             type: "Singleton",
             desc: "One Prisma instance",
-            color: "var(--teal)",
+            color: "var(--emerald)",
           },
           {
             name: "PaymentProviderRegistry",
             type: "Singleton",
             desc: "Idempotency guard",
-            color: "var(--teal)",
+            color: "var(--emerald)",
           },
           {
             name: "VideoConferenceService",
             type: "Singleton",
             desc: "Session tracking",
-            color: "var(--teal)",
+            color: "var(--emerald)",
           },
           {
             name: "RecommendationEngine",
             type: "Singleton",
             desc: "Adaptive learning",
-            color: "var(--teal)",
+            color: "var(--emerald)",
           },
           {
             name: "CourseFactory",
             type: "Factory Method",
             desc: "Free / Premium",
-            color: "var(--purple)",
+            color: "var(--violet)",
           },
           {
             name: "EvaluationFactory",
             type: "Factory Method",
             desc: "Quiz / Project",
-            color: "var(--purple)",
+            color: "var(--violet)",
           },
           {
             name: "CertificateFactory",
             type: "Factory Method",
             desc: "Basic / Verified",
-            color: "var(--purple)",
+            color: "var(--violet)",
           },
           {
             name: "PaymentProviderFactory",
             type: "Factory Method",
             desc: "Stripe / PayPal",
-            color: "var(--purple)",
+            color: "var(--violet)",
           },
         ].map((p) => (
           <div
@@ -1320,7 +1242,7 @@ export default function LMSApp({
               />
               <span
                 style={{
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-plex)",
                   fontSize: 11,
                   color: p.color,
                 }}
@@ -1330,8 +1252,8 @@ export default function LMSApp({
             </div>
             <span
               style={{
-                fontFamily: "var(--font-syne)",
-                fontWeight: 600,
+                fontFamily: "var(--font-bricolage)",
+                fontWeight: 400,
                 fontSize: 12,
                 color: "var(--text)",
               }}
@@ -1358,7 +1280,7 @@ export default function LMSApp({
             marginBottom: 32,
           }}
         >
-          <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0 }}>Catalog</h2>
+          <h2 style={{ fontSize: 36, fontWeight: 400, margin: 0 }}>Catalog</h2>
           <div style={{ display: "flex", gap: 6 }}>
             {(["all", "free", "premium"] as const).map((f) => (
               <button
@@ -1367,18 +1289,18 @@ export default function LMSApp({
                 style={{
                   padding: "7px 18px",
                   borderRadius: 7,
-                  border: `1px solid ${filter === f ? (f === "premium" ? "var(--orange)" : f === "free" ? "var(--lime)" : "var(--border)") : "var(--border)"}`,
+                  border: `1px solid ${filter === f ? (f === "premium" ? "var(--amber)" : f === "free" ? "var(--cyan)" : "var(--border)") : "var(--border)"}`,
                   background:
                     filter === f
                       ? f === "premium"
-                        ? "var(--orange-dim)"
+                        ? "var(--amber-dim)"
                         : f === "free"
-                          ? "var(--lime-dim)"
+                          ? "var(--cyan-dim)"
                           : "var(--surface2)"
                       : "transparent",
                   color: filter === f ? "var(--text)" : "var(--muted)",
-                  fontFamily: "var(--font-syne)",
-                  fontWeight: 600,
+                  fontFamily: "var(--font-bricolage)",
+                  fontWeight: 400,
                   fontSize: 12,
                   cursor: "pointer",
                   letterSpacing: "0.05em",
@@ -1408,7 +1330,7 @@ export default function LMSApp({
               style={{
                 background: "var(--surface)",
                 border: `1px solid ${step === "select" ? "var(--border-accent)" : "var(--border)"}`,
-                borderRadius: 14,
+                borderRadius: 8,
                 padding: "24px",
                 cursor: step === "select" ? "pointer" : "default",
                 transition: "all 0.2s",
@@ -1418,7 +1340,7 @@ export default function LMSApp({
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLDivElement).style.borderColor =
-                  course.type === "premium" ? "var(--orange)" : "var(--lime)";
+                  course.type === "premium" ? "var(--amber)" : "var(--cyan)";
                 (e.currentTarget as HTMLDivElement).style.transform =
                   "translateY(-3px)";
               }}
@@ -1440,18 +1362,18 @@ export default function LMSApp({
                   position: "absolute",
                   top: 16,
                   right: 16,
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-plex)",
                   fontSize: 10,
                   letterSpacing: "0.08em",
                   padding: "3px 8px",
                   borderRadius: 4,
                   background:
                     course.type === "premium"
-                      ? "var(--orange-dim)"
-                      : "var(--lime-dim)",
+                      ? "var(--amber-dim)"
+                      : "var(--cyan-dim)",
                   color:
-                    course.type === "premium" ? "var(--orange)" : "var(--lime)",
-                  border: `1px solid ${course.type === "premium" ? "rgba(255,90,31,0.3)" : "rgba(186,255,41,0.3)"}`,
+                    course.type === "premium" ? "var(--amber)" : "var(--cyan)",
+                  border: `1px solid ${course.type === "premium" ? "rgba(245,158,11,0.3)" : "rgba(255,122,23,0.3)"}`,
                 }}
               >
                 {course.type === "premium" ? `$${course.price}` : "FREE"}
@@ -1461,7 +1383,7 @@ export default function LMSApp({
                 style={{
                   margin: "0 0 8px",
                   fontSize: 17,
-                  fontWeight: 700,
+                  fontWeight: 400,
                   lineHeight: 1.3,
                   paddingRight: 60,
                 }}
@@ -1490,7 +1412,7 @@ export default function LMSApp({
                   style={{
                     fontSize: 11,
                     color: CATEGORY_COLORS[course.category] || "var(--muted)",
-                    fontFamily: "var(--font-mono)",
+                    fontFamily: "var(--font-plex)",
                   }}
                 >
                   {course.category}
@@ -1499,8 +1421,8 @@ export default function LMSApp({
                   <span
                     style={{
                       fontSize: 12,
-                      color: "var(--lime)",
-                      fontFamily: "var(--font-mono)",
+                      color: "var(--cyan)",
+                      fontFamily: "var(--font-plex)",
                     }}
                   >
                     ← select
@@ -1526,18 +1448,18 @@ export default function LMSApp({
             marginBottom: 32,
           }}
         >
-          <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0 }}>
+          <h2 style={{ fontSize: 36, fontWeight: 400, margin: 0 }}>
             Live Demo
           </h2>
           <div
             style={{
-              background: "var(--lime-dim)",
-              border: "1px solid rgba(186,255,41,0.3)",
+              background: "var(--cyan-dim)",
+              border: "1px solid rgba(255,122,23,0.3)",
               borderRadius: 6,
               padding: "4px 12px",
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-plex)",
               fontSize: 11,
-              color: "var(--lime)",
+              color: "var(--cyan)",
             }}
           >
             REAL API CALLS
@@ -1549,14 +1471,14 @@ export default function LMSApp({
             style={{
               background: "var(--surface)",
               border: "1px dashed var(--border-accent)",
-              borderRadius: 16,
+              borderRadius: 8,
               padding: "60px 40px",
               textAlign: "center",
               animation: "fadeIn 0.4s ease both",
             }}
           >
             <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
-            <h3 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 12px" }}>
+            <h3 style={{ fontSize: 24, fontWeight: 400, margin: "0 0 12px" }}>
               Watch the Full User Journey
             </h3>
             <p
@@ -1576,13 +1498,13 @@ export default function LMSApp({
               onClick={startDemo}
               disabled={loading}
               style={{
-                background: "var(--lime)",
+                background: "var(--cyan)",
                 color: "var(--bg)",
                 border: "none",
-                borderRadius: 10,
+                borderRadius: 8,
                 padding: "14px 36px",
-                fontFamily: "var(--font-syne)",
-                fontWeight: 700,
+                fontFamily: "var(--font-bricolage)",
+                fontWeight: 400,
                 fontSize: 16,
                 cursor: "pointer",
               }}
@@ -1603,7 +1525,7 @@ export default function LMSApp({
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
-                borderRadius: 14,
+                borderRadius: 8,
                 padding: "20px 16px",
               }}
             >
@@ -1611,7 +1533,7 @@ export default function LMSApp({
                 style={{
                   marginBottom: 20,
                   padding: "10px 12px",
-                  background: "var(--lime-dim)",
+                  background: "var(--cyan-dim)",
                   borderRadius: 8,
                 }}
               >
@@ -1619,13 +1541,13 @@ export default function LMSApp({
                   style={{
                     margin: 0,
                     fontSize: 11,
-                    color: "var(--lime)",
-                    fontFamily: "var(--font-mono)",
+                    color: "var(--cyan)",
+                    fontFamily: "var(--font-plex)",
                   }}
                 >
                   DEMO USER
                 </p>
-                <p style={{ margin: "4px 0 0", fontWeight: 700, fontSize: 14 }}>
+                <p style={{ margin: "4px 0 0", fontWeight: 400, fontSize: 14 }}>
                   {demoUser?.name || "…"}
                 </p>
                 <p
@@ -1633,7 +1555,7 @@ export default function LMSApp({
                     margin: "2px 0 0",
                     fontSize: 10,
                     color: "var(--muted)",
-                    fontFamily: "var(--font-mono)",
+                    fontFamily: "var(--font-plex)",
                     wordBreak: "break-all",
                   }}
                 >
@@ -1659,9 +1581,9 @@ export default function LMSApp({
                         padding: "9px 12px",
                         borderRadius: 8,
                         marginBottom: 4,
-                        background: active ? "var(--lime-dim)" : "transparent",
+                        background: active ? "var(--cyan-dim)" : "transparent",
                         border: active
-                          ? "1px solid rgba(186,255,41,0.2)"
+                          ? "1px solid rgba(255,122,23,0.2)"
                           : "1px solid transparent",
                         transition: "all 0.2s",
                       }}
@@ -1673,18 +1595,18 @@ export default function LMSApp({
                           borderRadius: "50%",
                           flexShrink: 0,
                           background: done
-                            ? "var(--lime)"
+                            ? "var(--cyan)"
                             : active
-                              ? "var(--lime)"
+                              ? "var(--cyan)"
                               : "var(--surface2)",
-                          border: `1.5px solid ${done || active ? "var(--lime)" : "var(--border)"}`,
+                          border: `1.5px solid ${done || active ? "var(--cyan)" : "var(--border)"}`,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           fontSize: 11,
                           color: done || active ? "var(--bg)" : "var(--muted)",
-                          fontFamily: "var(--font-mono)",
-                          fontWeight: 700,
+                          fontFamily: "var(--font-plex)",
+                          fontWeight: 400,
                         }}
                       >
                         {done ? "✓" : i + 1}
@@ -1692,9 +1614,9 @@ export default function LMSApp({
                       <span
                         style={{
                           fontSize: 12,
-                          fontWeight: active ? 700 : 400,
+                          fontWeight: 400,
                           color: active
-                            ? "var(--lime)"
+                            ? "var(--cyan)"
                             : done
                               ? "var(--text)"
                               : "var(--muted)",
@@ -1717,7 +1639,7 @@ export default function LMSApp({
                   color: "var(--muted)",
                   fontSize: 12,
                   cursor: "pointer",
-                  fontFamily: "var(--font-outfit)",
+                  fontFamily: "var(--font-dm)",
                 }}
               >
                 ↺ Reset
@@ -1729,7 +1651,7 @@ export default function LMSApp({
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
-                borderRadius: 14,
+                borderRadius: 8,
                 padding: "28px",
               }}
             >
@@ -1737,7 +1659,7 @@ export default function LMSApp({
               {step === "select" && (
                 <div style={{ animation: "fadeUp 0.4s ease both" }}>
                   <h3
-                    style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700 }}
+                    style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 400 }}
                   >
                     Choose a Course
                   </h3>
@@ -1765,7 +1687,7 @@ export default function LMSApp({
                         style={{
                           background: "var(--surface2)",
                           border: "1px solid var(--border)",
-                          borderRadius: 10,
+                          borderRadius: 8,
                           padding: "14px 18px",
                           cursor: "pointer",
                           display: "flex",
@@ -1779,14 +1701,14 @@ export default function LMSApp({
                             e.currentTarget as HTMLButtonElement
                           ).style.borderColor =
                             c.type === "premium"
-                              ? "var(--orange)"
-                              : "var(--lime)";
+                              ? "var(--amber)"
+                              : "var(--cyan)";
                           (
                             e.currentTarget as HTMLButtonElement
                           ).style.background =
                             c.type === "premium"
-                              ? "var(--orange-dim)"
-                              : "var(--lime-dim)";
+                              ? "var(--amber-dim)"
+                              : "var(--cyan-dim)";
                         }}
                         onMouseLeave={(e) => {
                           (
@@ -1804,7 +1726,7 @@ export default function LMSApp({
                           <p
                             style={{
                               margin: 0,
-                              fontWeight: 700,
+                              fontWeight: 400,
                               fontSize: 14,
                               color: "var(--text)",
                             }}
@@ -1823,13 +1745,13 @@ export default function LMSApp({
                         </div>
                         <span
                           style={{
-                            fontFamily: "var(--font-mono)",
+                            fontFamily: "var(--font-plex)",
                             fontSize: 12,
                             color:
                               c.type === "premium"
-                                ? "var(--orange)"
-                                : "var(--lime)",
-                            fontWeight: 700,
+                                ? "var(--amber)"
+                                : "var(--cyan)",
+                            fontWeight: 400,
                           }}
                         >
                           {c.type === "premium" ? `$${c.price}` : "FREE"}
@@ -1844,7 +1766,7 @@ export default function LMSApp({
               {step === "paying" && selectedCourse && (
                 <div style={{ animation: "fadeUp 0.4s ease both" }}>
                   <h3
-                    style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700 }}
+                    style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 400 }}
                   >
                     Process Payment
                   </h3>
@@ -1855,11 +1777,11 @@ export default function LMSApp({
                       margin: "0 0 24px",
                     }}
                   >
-                    <code style={{ color: "var(--orange)" }}>
+                    <code style={{ color: "var(--amber)" }}>
                       PaymentProviderFactory.create()
                     </code>{" "}
                     → instantiates provider.
-                    <code style={{ color: "var(--teal)", marginLeft: 6 }}>
+                    <code style={{ color: "var(--emerald)", marginLeft: 6 }}>
                       PaymentProviderRegistry
                     </code>{" "}
                     singleton guards against duplicates.
@@ -1867,7 +1789,7 @@ export default function LMSApp({
                   <div
                     style={{
                       background: "var(--surface2)",
-                      borderRadius: 12,
+                      borderRadius: 8,
                       padding: "20px",
                       border: "1px solid var(--border)",
                       marginBottom: 20,
@@ -1883,7 +1805,7 @@ export default function LMSApp({
                       <span style={{ color: "var(--muted)", fontSize: 13 }}>
                         Course
                       </span>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>
+                      <span style={{ fontWeight: 400, fontSize: 13 }}>
                         {selectedCourse.title}
                       </span>
                     </div>
@@ -1900,9 +1822,9 @@ export default function LMSApp({
                       </span>
                       <span
                         style={{
-                          fontWeight: 800,
+                          fontWeight: 400,
                           fontSize: 20,
-                          color: "var(--orange)",
+                          color: "var(--amber)",
                         }}
                       >
                         ${selectedCourse.price}
@@ -1929,15 +1851,15 @@ export default function LMSApp({
                           borderRadius: 8,
                           background:
                             payProvider === p
-                              ? "var(--orange-dim)"
+                              ? "var(--amber-dim)"
                               : "var(--surface2)",
-                          border: `1.5px solid ${payProvider === p ? "var(--orange)" : "var(--border)"}`,
+                          border: `1.5px solid ${payProvider === p ? "var(--amber)" : "var(--border)"}`,
                           color:
                             payProvider === p
-                              ? "var(--orange)"
+                              ? "var(--amber)"
                               : "var(--muted)",
-                          fontFamily: "var(--font-syne)",
-                          fontWeight: 700,
+                          fontFamily: "var(--font-bricolage)",
+                          fontWeight: 400,
                           fontSize: 14,
                           cursor: "pointer",
                           textTransform: "capitalize",
@@ -1953,12 +1875,12 @@ export default function LMSApp({
                     style={{
                       width: "100%",
                       padding: "14px",
-                      background: "var(--orange)",
+                      background: "var(--amber)",
                       border: "none",
-                      borderRadius: 10,
+                      borderRadius: 8,
                       color: "#fff",
-                      fontFamily: "var(--font-syne)",
-                      fontWeight: 700,
+                      fontFamily: "var(--font-bricolage)",
+                      fontWeight: 400,
                       fontSize: 15,
                       cursor: "pointer",
                     }}
@@ -1994,7 +1916,7 @@ export default function LMSApp({
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: "var(--lime)",
+                          background: "var(--cyan)",
                           animation: `bounce-dot 1.2s ${i * 0.2}s ease-in-out infinite`,
                         }}
                       />
@@ -2018,7 +1940,7 @@ export default function LMSApp({
                       style={{
                         margin: "0 0 8px",
                         fontSize: 20,
-                        fontWeight: 700,
+                        fontWeight: 400,
                       }}
                     >
                       Capstone Project
@@ -2037,12 +1959,12 @@ export default function LMSApp({
                       style={{
                         background: "var(--surface2)",
                         border: "1px solid var(--border)",
-                        borderRadius: 10,
+                        borderRadius: 8,
                         padding: "16px 18px",
                         marginBottom: 20,
-                        fontFamily: "var(--font-mono)",
+                        fontFamily: "var(--font-plex)",
                         fontSize: 12,
-                        color: "var(--teal)",
+                        color: "var(--emerald)",
                       }}
                     >
                       https://github.com/alex-chen/capstone
@@ -2066,7 +1988,7 @@ export default function LMSApp({
                         <span style={{ color: "var(--muted)" }}>
                           {r.criteria}
                         </span>
-                        <span style={{ fontFamily: "var(--font-mono)" }}>
+                        <span style={{ fontFamily: "var(--font-plex)" }}>
                           {r.maxScore}pts
                         </span>
                       </div>
@@ -2078,12 +2000,12 @@ export default function LMSApp({
                         width: "100%",
                         marginTop: 20,
                         padding: "14px",
-                        background: "var(--purple)",
+                        background: "var(--violet)",
                         border: "none",
-                        borderRadius: 10,
+                        borderRadius: 8,
                         color: "#fff",
-                        fontFamily: "var(--font-syne)",
-                        fontWeight: 700,
+                        fontFamily: "var(--font-bricolage)",
+                        fontWeight: 400,
                         fontSize: 15,
                         cursor: "pointer",
                       }}
@@ -2108,9 +2030,9 @@ export default function LMSApp({
                       borderRadius: "50%",
                       margin: "0 auto 24px",
                       background: submission.passed
-                        ? "var(--lime-dim)"
-                        : "rgba(255,90,31,0.1)",
-                      border: `3px solid ${submission.passed ? "var(--lime)" : "var(--orange)"}`,
+                        ? "var(--cyan-dim)"
+                        : "rgba(245,158,11,0.1)",
+                      border: `3px solid ${submission.passed ? "var(--cyan)" : "var(--amber)"}`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -2122,21 +2044,21 @@ export default function LMSApp({
                     {submission.passed ? "🏆" : "✗"}
                   </div>
                   <h3
-                    style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}
+                    style={{ fontSize: 28, fontWeight: 400, margin: "0 0 8px" }}
                   >
                     {submission.passed ? "Passed!" : "Not Passed"}
                   </h3>
                   <div
                     style={{
                       fontSize: 52,
-                      fontWeight: 800,
+                      fontWeight: 400,
                       margin: "0 0 16px",
                       color:
                         submission.score >= 80
-                          ? "var(--lime)"
+                          ? "var(--cyan)"
                           : submission.score >= 60
-                            ? "var(--gold)"
-                            : "var(--orange)",
+                            ? "var(--amber)"
+                            : "var(--amber)",
                     }}
                   >
                     {submission.score}
@@ -2149,13 +2071,13 @@ export default function LMSApp({
                       onClick={generateCert}
                       disabled={loading}
                       style={{
-                        background: "var(--lime)",
+                        background: "var(--cyan)",
                         color: "var(--bg)",
                         border: "none",
-                        borderRadius: 10,
+                        borderRadius: 8,
                         padding: "14px 28px",
-                        fontFamily: "var(--font-syne)",
-                        fontWeight: 700,
+                        fontFamily: "var(--font-bricolage)",
+                        fontWeight: 400,
                         fontSize: 15,
                         cursor: "pointer",
                         marginTop: 8,
@@ -2186,10 +2108,10 @@ export default function LMSApp({
                         marginTop: 16,
                         background: "transparent",
                         border: "1px solid var(--border)",
-                        borderRadius: 10,
+                        borderRadius: 8,
                         padding: "12px",
                         color: "var(--muted)",
-                        fontFamily: "var(--font-outfit)",
+                        fontFamily: "var(--font-dm)",
                         fontSize: 14,
                         cursor: "pointer",
                       }}
@@ -2211,18 +2133,18 @@ export default function LMSApp({
                     }}
                   >
                     <span style={{ fontSize: 20 }}>🤖</span>
-                    <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
+                    <h3 style={{ margin: 0, fontSize: 20, fontWeight: 400 }}>
                       AI Recommendations
                     </h3>
                     <div
                       style={{
-                        background: "var(--teal-dim)",
-                        border: "1px solid rgba(0,217,204,0.3)",
+                        background: "var(--emerald-dim)",
+                        border: "1px solid rgba(52,211,153,0.3)",
                         borderRadius: 5,
                         padding: "2px 8px",
                         fontSize: 10,
-                        fontFamily: "var(--font-mono)",
-                        color: "var(--teal)",
+                        fontFamily: "var(--font-plex)",
+                        color: "var(--emerald)",
                       }}
                     >
                       Singleton Engine
@@ -2254,7 +2176,7 @@ export default function LMSApp({
                           style={{
                             background: "var(--surface2)",
                             border: "1px solid var(--border)",
-                            borderRadius: 10,
+                            borderRadius: 8,
                             padding: "14px 16px",
                           }}
                         >
@@ -2265,17 +2187,17 @@ export default function LMSApp({
                               marginBottom: 4,
                             }}
                           >
-                            <span style={{ fontWeight: 700, fontSize: 14 }}>
+                            <span style={{ fontWeight: 400, fontSize: 14 }}>
                               {rec.courseTitle}
                             </span>
                             <span
                               style={{
-                                fontFamily: "var(--font-mono)",
+                                fontFamily: "var(--font-plex)",
                                 fontSize: 12,
                                 color:
                                   rec.score > 0.8
-                                    ? "var(--lime)"
-                                    : "var(--gold)",
+                                    ? "var(--cyan)"
+                                    : "var(--amber)",
                               }}
                             >
                               {Math.round(rec.score * 100)}% match
@@ -2298,18 +2220,18 @@ export default function LMSApp({
                     style={{
                       marginTop: 20,
                       padding: "16px",
-                      background: "var(--lime-dim)",
-                      border: "1px solid rgba(186,255,41,0.2)",
-                      borderRadius: 10,
+                      background: "var(--cyan-dim)",
+                      border: "1px solid rgba(255,122,23,0.2)",
+                      borderRadius: 8,
                       textAlign: "center",
                     }}
                   >
                     <p
                       style={{
                         margin: 0,
-                        color: "var(--lime)",
-                        fontFamily: "var(--font-syne)",
-                        fontWeight: 700,
+                        color: "var(--cyan)",
+                        fontFamily: "var(--font-bricolage)",
+                        fontWeight: 400,
                         fontSize: 15,
                       }}
                     >
@@ -2327,13 +2249,13 @@ export default function LMSApp({
                     <button
                       onClick={resetDemo}
                       style={{
-                        background: "var(--lime)",
+                        background: "var(--cyan)",
                         color: "var(--bg)",
                         border: "none",
                         borderRadius: 8,
                         padding: "10px 20px",
-                        fontFamily: "var(--font-syne)",
-                        fontWeight: 700,
+                        fontFamily: "var(--font-bricolage)",
+                        fontWeight: 400,
                         fontSize: 13,
                         cursor: "pointer",
                       }}
@@ -2349,12 +2271,12 @@ export default function LMSApp({
                   style={{
                     marginTop: 16,
                     padding: "12px 16px",
-                    background: "rgba(255,90,31,0.08)",
-                    border: "1px solid rgba(255,90,31,0.3)",
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.3)",
                     borderRadius: 8,
-                    color: "var(--orange)",
+                    color: "var(--amber)",
                     fontSize: 13,
-                    fontFamily: "var(--font-mono)",
+                    fontFamily: "var(--font-plex)",
                   }}
                 >
                   ⚠ {error}
@@ -2367,7 +2289,7 @@ export default function LMSApp({
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
-                borderRadius: 14,
+                borderRadius: 8,
                 padding: "20px",
                 display: "flex",
                 flexDirection: "column",
@@ -2386,13 +2308,13 @@ export default function LMSApp({
                     width: 6,
                     height: 6,
                     borderRadius: "50%",
-                    background: "var(--lime)",
-                    animation: "pulse-glow 2s infinite",
+                    background: "var(--cyan)",
+                    animation: "pulse-cyan 2s infinite",
                   }}
                 />
                 <span
                   style={{
-                    fontFamily: "var(--font-mono)",
+                    fontFamily: "var(--font-plex)",
                     fontSize: 11,
                     color: "var(--muted)",
                     letterSpacing: "0.08em",
@@ -2403,7 +2325,7 @@ export default function LMSApp({
                 <span
                   style={{
                     marginLeft: "auto",
-                    fontFamily: "var(--font-mono)",
+                    fontFamily: "var(--font-plex)",
                     fontSize: 10,
                     color: "var(--muted)",
                   }}
@@ -2450,15 +2372,15 @@ export default function LMSApp({
             style={{
               width: 20,
               height: 20,
-              background: "var(--lime)",
+              background: "var(--cyan)",
               clipPath:
                 "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
             }}
           />
           <span
             style={{
-              fontFamily: "var(--font-syne)",
-              fontWeight: 700,
+              fontFamily: "var(--font-bricolage)",
+              fontWeight: 400,
               fontSize: 14,
             }}
           >
@@ -2473,7 +2395,7 @@ export default function LMSApp({
             <span
               key={tag}
               style={{
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-plex)",
                 fontSize: 10,
                 color: "var(--muted)",
                 background: "var(--surface)",
